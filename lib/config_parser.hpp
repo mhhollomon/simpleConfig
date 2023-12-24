@@ -1,232 +1,37 @@
-#include <simple_config.hpp>
+#pragma once
+
+#include "parser_base.hpp"
+
+#include "value_type.hpp"
+
+#include "simpleConfig.hpp"
 
 #include <string_view>
-#include <list>
 #include <charconv>
 #include <optional>
 #include <sstream>
 
-#include <ostream>
+
+namespace simpleConfig {
+
+    using VT = ValType;
 
 
-namespace Configinator5000 {
-
-    using ST = Setting::setting_type;
-
-    struct parse_loc {
-        std::string_view sv;
-        int offset = 0;
-        int line = 0;
-    };
-
-    struct error_info {
-        std::string message;
-        parse_loc loc;
-
-        error_info() = default;
-        error_info(const std::string &mesg, const parse_loc &l) :
-            message{mesg}, loc{l} {}
-
-        friend std::ostream & operator<<(std::ostream &strm, const error_info& ei) {
-            strm << "line " << ei.loc.line << " : " << ei.message << "\n";
-            return strm;
-        }
-    };
-
-    struct error_list {
-        std::string_view src;
-        std::list<error_info> errors;
-
-        int count() const {
-            return static_cast<int>(errors.size());
-        }
-
-        bool empty() const { return errors.empty(); }
-
-        void add(const std::string &mesg, const parse_loc &l) {
-            errors.emplace_back(mesg, l);
-        }
-
-        friend std::ostream & operator<<(std::ostream &strm, const error_list & el){
-            for (auto &e : el.errors) {
-                strm << e;
-            }
-            return strm;
-        }
-    };
-
-    struct Parser {
-
-        std::string_view src;
+    struct Parser : public ParserBase {
 
         Setting *setting;
 
-        parse_loc current_loc;
-
-        error_list errors;
-
-        Parser(std::string_view _src, Setting *s) : src{_src}, setting{s},
-            current_loc{_src, 0, 0} {}
-
-        /***********************************************************
-         * Error utilities
-         ***********************************************************/
-
-        void record_error(const std::string &msg, const parse_loc &l) {
-            errors.add(msg, l);
-        }
-
-        void record_error(const std::string & msg) {
-            record_error(msg, current_loc);
-        }
-
-        /***********************************************************
-         * Input utilities
-         ***********************************************************/
-
-        inline void consume(int count) {
-            // note : others are responsible for line number
-            current_loc.offset += count;
-            current_loc.sv.remove_prefix(count);
-        }
-
-        inline bool eoi() { return current_loc.sv.size() == 0; }
-
-        inline char peek() { if (!eoi()) { return current_loc.sv[0]; }
-            else { return '\x00'; } }
-
-        inline char peek(int pos) { return current_loc.sv[pos]; }
-
-        inline bool valid_pos(int pos) {
-            return (pos >= 0 and (unsigned)pos < current_loc.sv.size()); 
-        }
+        Parser(std::string_view _src, Setting *s) : ParserBase(_src),
+            setting{s}
+        {}
 
 
-        inline bool check_string(std::string_view o) {
-            return current_loc.sv.compare(0, o.size(), o) == 0;
-        }
-        
-        inline bool match_string(std::string_view o) {
-            bool matched = check_string(o);
-            if (matched) consume(o.size());
-            return matched;
-        }
-
-        /****************************************************************
-        * SKIP Processing
-        ****************************************************************/
-        bool skip() {
-
-            //
-            // States for the state machine
-            //
-            enum SKIP_STATE { skNormal, skLine, skBlock };
-
-            SKIP_STATE state = skNormal;
-
-            //
-            // we'll be using this a lot.
-            // So abbreviate it with a reference.
-            //
-            auto &cl = current_loc;
-
-            //
-            // When we enter a comment, we'll record where it started.
-            // If, at the end, we're still looking for comment terminator,
-            // we can use this location to put out an error message.
-            //
-            parse_loc comment_loc;
-
-            bool skipping = true;
-            int line_count = 0;
-            while (skipping and not eoi()) {
-
-                //std::cout << "Loop top pos = " << cl.offset <<
-                //    " state = " << state <<
-                //    " char = '" << peek() << "'\n";
-                switch (state) {
-                    case skNormal : // Normal state
-                        if (peek(0) == '\n') {
-                            line_count += 1;
-                            consume(1);
-                        } else if (std::isspace(peek(0))) {
-                            consume(1);
-                        } else if (peek(0) == '#') {
-                            //std::cout << "--- Saw hash comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("//")) {
-                            //std::cout << "--- Saw line comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("/*")) {
-                            //std::cout << "--- Saw block comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skBlock;
-                        } else {
-                            skipping = false;
-                        }
-                        break;
-                    case skLine: // Line comment
-                        if (peek(0) == '\n') {
-                            //std::cout << "--- line comment end\n";
-                            state = skNormal;
-                            line_count += 1;
-                        }
-                        consume(1);
-                        break;
-                    case skBlock: // Block comment
-                        if (match_string("*/")) {
-                            //std::cout << "--- block comment end\n";
-                            state = skNormal;
-                        } else {
-                            if (peek(0) == '\n') {
-                                line_count += 1;
-                            }
-                            consume(1);
-                        }
-                        break;
-                }
-            }
-
-            if (state != skNormal) {
-                record_error("Unterminated comment starting here", comment_loc);
-                return false;
-            }
-
-            current_loc.line += line_count;
-
-            return true;
-        };
-
-        bool match_char(int pos, char c) {
-            return (valid_pos(pos) and peek(pos) == c);
-        }
-
-        bool match_char(char c) {
-            return peek() == c;
-        }
-
-        bool match_chars(int pos, const char * c) {
-            if (!valid_pos(pos)) return false;
-            char t  = peek(pos);
-
-            while (*c) {
-                if (*c == t) return true;
-                ++c;
-            }
-
-            return false;
-        }
 
         //##############   match_bool_value  #################
 
         std::optional<bool> match_bool_value() {
             // if there aren't enough chars then short circuit
-            if (!valid_pos(4)) {
+            if (!valid_pos(3)) {
                 return std::nullopt;
             }
 
@@ -242,7 +47,7 @@ namespace Configinator5000 {
                 if (! match_chars(pos, "Ee")) return std::nullopt;
                 pos += 1;
                 // must be at end of word
-                if (valid_pos(pos) and std::isalnum(peek(pos))) return std::nullopt;
+                if (!check_string_end(pos)) return std::nullopt;
 
                 consume(pos);
                 return false;
@@ -256,7 +61,7 @@ namespace Configinator5000 {
                 if (! match_chars(pos, "Ee")) return std::nullopt;
                 pos += 1;
                 // must be at end of word
-                if (valid_pos(pos) and std::isalnum(peek(pos))) return std::nullopt;
+                if (!check_string_end(pos)) return std::nullopt;
 
                 consume(pos);
                 return true;
@@ -469,14 +274,14 @@ namespace Configinator5000 {
         std::optional<std::string> match_name() {
 
             int pos = 0;
-            if (peek(pos) == '*' or std::isalpha(peek(pos))) {
+            if (std::isalpha(peek(pos))) {
                 pos += 1;
             } else {
                 return std::nullopt;
             }
 
             while (valid_pos(pos)) {
-                if ( peek(pos) == '*' or peek(pos) == '_' or
+                if ( peek(pos) == '_' or
                         std::isalnum(peek(pos))) {
                     pos += 1;
                 } else break;
@@ -549,7 +354,7 @@ namespace Configinator5000 {
                     consume(1);
                     skip();
                 }
-                if (setting->array_type() == ST::BOOL) {
+                if (setting->array_type() == VT::BOOL) {
                     auto bv = match_bool_value();
                     if (bv) {
                         setting->add_child(*bv);
@@ -557,7 +362,7 @@ namespace Configinator5000 {
                         break;
                     }
 
-                } else if (setting->array_type() == ST::INTEGER) {
+                } else if (setting->array_type() == VT::INTEGER) {
                     auto lv = match_integer_value();
                     if (lv) {
                         setting->add_child(*lv);
@@ -565,14 +370,14 @@ namespace Configinator5000 {
                         break;
                     }
 
-                } else if (setting->array_type() == ST::FLOAT) {
+                } else if (setting->array_type() == VT::FLOAT) {
                     auto dv = match_double_value();
                     if (dv) {
                         setting->add_child(*dv);
                     } else {
                         break;
                     }
-                } else if (setting->array_type() == ST::STRING) {
+                } else if (setting->array_type() == VT::STRING) {
 
                     auto sv = match_string_value();
                     if (sv) {
@@ -650,8 +455,8 @@ namespace Configinator5000 {
 
             skip();
 
-            if (not match_chars(0, ":=")) {
-                record_error("Expecting : or = after setting name");
+            if (not match_char(':')) {
+                record_error("Expecting : after setting name");
                 return false;
             }
             consume(1);
@@ -704,24 +509,5 @@ namespace Configinator5000 {
 
     };
 
-    bool Config::parse_with_schema(const std::string &input, const SchemaNode *schema){
 
-        cfg_.reset(new Setting(ST::GROUP));
-
-        if (parser_) delete parser_;
-        parser_ = new Parser(input, cfg_.get());
-
-        return parser_->do_parse();
-    }
-
-    std::ostream &Config::stream_errors(std::ostream &strm) {
-        strm << parser_->errors;
-
-        return strm;
-    }
-
-    Config::~Config() {
-        if (parser_) delete parser_;
-    }
-
-} // end namespace Configinator5000
+}

@@ -2,11 +2,9 @@
 Simple configuration Library with schema validation
 
 ```
-{
     foo : 123
     bar : "hello"
     crash-and-burn : True
-}
 ```
 
 The following are keywords in the validation schema and may not be used as
@@ -17,7 +15,7 @@ keys in a configuration file.
 - bool
 
 ```
-config-file ::= '{' ( <key> ':' <value> )+ '}'
+config-file ::= ( <key> ':' <value> )+
 
 key ::= [a-zA-Z][a-zA-Z0-9-_]*
 
@@ -33,7 +31,7 @@ boolean ::= [Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]
 key/value pairs are delimited by blanks.
 ```
 #This is valid
-{foo:123 bar:"hello"}
+foo:123 bar:"hello"
 ```
 
 ```
@@ -48,12 +46,13 @@ Three kinds of comments
 ```
 # Yes, this means that a schema file is not
 # a valid config file.
-{
-    # foo must be present and an integer
-    foo! : int
-    # bar may be present but must be a string if so
-    bar? : str
-    # other keys may be present, but must be integers
-    * : int
-}
+
+# foo must be present and an integer
+foo! : int
+# bar may be present but must be a string if so
+bar : string
+# other keys may be present, but must be integers
+* : bool
+
+# valid types are int, string, float, bool
 ```

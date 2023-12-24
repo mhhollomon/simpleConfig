@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include <simple_config.hpp>
+#include <simpleConfig.hpp>
 
 #include <string>
 
@@ -9,7 +9,7 @@ using namespace std::literals::string_literals;
 
 TEST_CASE("integer") {
 
-    Configinator5000::Setting s{3};
+    simpleConfig::Setting s{3};
     CHECK(s.is_integer());
     CHECK_FALSE(s.is_boolean());
     CHECK_FALSE(s.is_float());
@@ -46,7 +46,7 @@ TEST_CASE("integer") {
 
 TEST_CASE("bool") {
 
-    Configinator5000::Setting s{true};
+    simpleConfig::Setting s{true};
     CHECK_FALSE(s.is_integer());
     CHECK(s.is_boolean());
     CHECK_FALSE(s.is_float());
@@ -74,7 +74,7 @@ TEST_CASE("bool") {
 
 TEST_CASE("float") {
 
-    Configinator5000::Setting s{42.0};
+    simpleConfig::Setting s{42.0};
     CHECK_FALSE(s.is_integer());
     CHECK_FALSE(s.is_boolean());
     CHECK(s.is_float());
@@ -102,7 +102,7 @@ TEST_CASE("float") {
 
 TEST_CASE("std::string") {
 
-    Configinator5000::Setting s{"foo bar"};
+    simpleConfig::Setting s{"foo bar"};
     CHECK_FALSE(s.is_integer());
     CHECK_FALSE(s.is_boolean());
     CHECK_FALSE(s.is_float());
@@ -129,7 +129,7 @@ TEST_CASE("std::string") {
 }
 
 TEST_CASE("scalar conversions") {
-    Configinator5000::Setting s{"foo bar"};
+    simpleConfig::Setting s{"foo bar"};
 
     CHECK(s.is_string());
 
@@ -152,9 +152,9 @@ TEST_CASE("scalar conversions") {
 }
 
 TEST_CASE("Groups") {
-    using ST = Configinator5000::Setting::setting_type;
+    using ST = simpleConfig::ValType;
 
-    Configinator5000::Setting s{};
+    simpleConfig::Setting s{};
 
     s.make_group();
     CHECK(s.is_group());
@@ -191,9 +191,9 @@ TEST_CASE("Groups") {
 
 }
 TEST_CASE("Groups Enum") {
-    using ST = Configinator5000::Setting::setting_type;
+    using ST = simpleConfig::ValType;
 
-    Configinator5000::Setting s{ST::GROUP};
+    simpleConfig::Setting s{ST::GROUP};
 
     s.add_child("a", 1);
     s.add_child("b", 2);
@@ -220,9 +220,9 @@ TEST_CASE("Groups Enum") {
 }
 
 TEST_CASE("Lists") {
-    using ST = Configinator5000::Setting::setting_type;
+    using ST = simpleConfig::ValType;
 
-    Configinator5000::Setting s{ST::LIST};
+    simpleConfig::Setting s{ST::LIST};
 
     CHECK(s.is_list());
     CHECK(s.is_composite());
@@ -250,9 +250,9 @@ TEST_CASE("Arrays") {
     // An Array can only have one type of child.
     // First in wins.
     // Also, children must be scalar
-    using ST = Configinator5000::Setting::setting_type;
+    using ST = simpleConfig::ValType;
 
-    Configinator5000::Setting s{ST::ARRAY};
+    simpleConfig::Setting s{ST::ARRAY};
 
     CHECK(s.is_array());
     CHECK(s.is_composite());

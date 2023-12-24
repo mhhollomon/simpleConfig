@@ -1,5 +1,8 @@
 // Grammar is here : https://hyperrealm.github.io/libconfig/libconfig_manual.html#Configuration-File-Grammar
 //
+#pragma once
+
+#include "value_type.hpp"
 
 #include <memory>
 #include <string>
@@ -14,22 +17,20 @@
 
 using namespace std::literals::string_literals;
 
-namespace Configinator5000 {
-
+namespace simpleConfig {
+    
     // These make up the schema tree
     // that is consulted for the rules
-    class SchemaNode {
-    };
+    struct SchemaNode;
 
     // These make up the Config Tree that
     // we give to the user.
     class Setting {
     public :
-        enum class setting_type { STRING, BOOL, INTEGER, FLOAT, GROUP, LIST, ARRAY };
 
     private :
 
-        setting_type type_;
+        ValType type_;
 
         // scalar containers (maybe change to std::variant?)
         long integer_;
@@ -45,7 +46,7 @@ namespace Configinator5000 {
         std::map<std::string, int> group_;
 
         // Arrays must all be the same type. Set when the first child is added to the array.
-        setting_type array_type_ = setting_type::BOOL;
+        ValType array_type_ = ValType::BOOL;
 
         void clear_subobjects() {
             children_.clear();
@@ -54,40 +55,42 @@ namespace Configinator5000 {
         }
 
         template<class T>
-        setting_type deduce_scalar_type(T v) {
+        ValType deduce_scalar_type(T v) {
             if constexpr (std::is_same_v<T, bool>) {
-                return setting_type::BOOL;
+                return ValType::BOOL;
             } else if constexpr (std::is_convertible_v<std::string, T>) {
-                return setting_type::STRING;
+                return ValType::STRING;
             } else if constexpr (std::is_integral_v<T>) {
-                return setting_type::INTEGER;
+                return ValType::INTEGER;
             } else if constexpr(std::is_floating_point_v<T>) {
-                return setting_type::FLOAT;
+                return ValType::FLOAT;
             } else {
                 throw std::runtime_error("Could not deduce setting type from value");
             }
         }
 
-        static constexpr bool is_scalar_type(setting_type t) {
-            using st = setting_type;
+        static constexpr bool is_scalar_type(ValType t) {
+            using st = ValType;
             return (t == st::INTEGER or t == st::FLOAT or t == st::BOOL or t == st::STRING);
         }
 
-        static constexpr bool is_composite_type(setting_type t) {
-            using st = setting_type;
+        static constexpr bool is_composite_type(ValType t) {
+            using st = ValType;
             return (t == st::GROUP or t == st::LIST or t == st::ARRAY);
         }
         
 
     public :
-        Setting(setting_type t = setting_type::BOOL) : type_{t} {}
+        Setting(ValType t = ValType::BOOL) : type_{t} {}
 
-        Setting(bool b) : type_(setting_type::BOOL), bool_(b) {}
-        Setting(int i) : type_(setting_type::INTEGER), integer_(i) {}
-        Setting(long l) : type_(setting_type::INTEGER), integer_(l) {}
-        Setting(double f) :  type_(setting_type::FLOAT), float_(f) {}
-        Setting(std::string s) : type_(setting_type::STRING), string_(s) {}
-        Setting(const char * c) : type_(setting_type::STRING), string_(c) {}
+        Setting(bool b) : type_(ValType::BOOL), bool_(b) {}
+        Setting(int i) : type_(ValType::INTEGER), integer_(i) {}
+        Setting(long l) : type_(ValType::INTEGER), integer_(l) {}
+        Setting(double f) :  type_(ValType::FLOAT), float_(f) {}
+        Setting(std::string s) : type_(ValType::STRING), string_(s) {}
+        Setting(const char * c) : type_(ValType::STRING), string_(c) {}
+
+        ValType get_type() const { return type_; }
 
         class group_iterator;
         class group_enumerator {
@@ -157,6 +160,13 @@ namespace Configinator5000 {
                 bool operator==(const group_iterator &o) const {
                     return (it_ == o.it_);
                 }
+                bool operator!=(const group_iterator *o) const {
+                    return (it_ != o->it_);
+                }
+                bool operator!=(const group_iterator &o) const {
+                    return (it_ != o.it_);
+                }
+
         };
 
         group_enumerator& enumerate() {
@@ -170,7 +180,7 @@ namespace Configinator5000 {
         Setting & set_value(bool b) {
             if (!is_boolean()) {
                 clear_subobjects();
-                type_ = setting_type::BOOL;
+                type_ = ValType::BOOL;
             }
             bool_ = b;
             return *this;
@@ -179,7 +189,7 @@ namespace Configinator5000 {
         Setting & set_value(int i) {
             if (!is_integer()) {
                 clear_subobjects();
-                type_ = setting_type::INTEGER;
+                type_ = ValType::INTEGER;
             }
             integer_ = i;
             return *this;
@@ -188,7 +198,7 @@ namespace Configinator5000 {
         Setting & set_value(long i) {
             if (!is_integer()) {
                 clear_subobjects();
-                type_ = setting_type::INTEGER;
+                type_ = ValType::INTEGER;
             }
             integer_ = i;
             return *this;
@@ -197,7 +207,7 @@ namespace Configinator5000 {
         Setting & set_value(double f) {
             if (!is_float()) {
                 clear_subobjects();
-                type_ = setting_type::FLOAT;
+                type_ = ValType::FLOAT;
             }
             float_ = f;
             return *this;
@@ -207,7 +217,7 @@ namespace Configinator5000 {
         Setting & set_value(const std::string s) {
             if (!is_string()) {
                 clear_subobjects();
-                type_ = setting_type::STRING;
+                type_ = ValType::STRING;
             }
             string_ = s;
             return *this;
@@ -216,19 +226,19 @@ namespace Configinator5000 {
         Setting & set_value(const char *c) {
             if (!is_string()) {
                 clear_subobjects();
-                type_ = setting_type::STRING;
+                type_ = ValType::STRING;
             }
             string_ = c;
             return *this;
         }
 
-        bool is_boolean() const { return (type_ == setting_type::BOOL); }
-        bool is_integer() const { return (type_ == setting_type::INTEGER); }
-        bool is_float()   const { return (type_ == setting_type::FLOAT); }
-        bool is_string()  const { return (type_ == setting_type::STRING); }
-        bool is_group()   const { return (type_ == setting_type::GROUP); }
-        bool is_list()    const { return (type_ == setting_type::LIST); }
-        bool is_array()   const { return (type_ == setting_type::ARRAY); }
+        bool is_boolean() const { return (type_ == ValType::BOOL); }
+        bool is_integer() const { return (type_ == ValType::INTEGER); }
+        bool is_float()   const { return (type_ == ValType::FLOAT); }
+        bool is_string()  const { return (type_ == ValType::STRING); }
+        bool is_group()   const { return (type_ == ValType::GROUP); }
+        bool is_list()    const { return (type_ == ValType::LIST); }
+        bool is_array()   const { return (type_ == ValType::ARRAY); }
 
         bool is_numeric()   const { return (is_integer() || is_float()); }
         bool is_composite() const { return (is_group() || is_list() || is_array()); }
@@ -237,21 +247,21 @@ namespace Configinator5000 {
         void make_list() {
             if (!is_list()) {
                 clear_subobjects();
-                type_ = setting_type::LIST;
+                type_ = ValType::LIST;
             }
         }
 
         void make_group() {
             if (!is_group()) {
                 clear_subobjects();
-                type_ = setting_type::GROUP;
+                type_ = ValType::GROUP;
             }
         }
 
         void make_array() {
             if (! is_array()) {
                 clear_subobjects();
-                type_ = setting_type::ARRAY;
+                type_ = ValType::ARRAY;
             }
         }
 
@@ -306,7 +316,7 @@ namespace Configinator5000 {
                 throw std::runtime_error("Group children must have names");
 
             } else if (is_array()) {
-                setting_type target_type = deduce_scalar_type(v);
+                ValType target_type = deduce_scalar_type(v);
                 if (children_.size() > 0) {
                     if (array_type_ != target_type) {
                         throw std::runtime_error("All children of arrays must be the same type");
@@ -324,7 +334,7 @@ namespace Configinator5000 {
             }
         }
 
-        Setting &add_child(setting_type t) {
+        Setting &add_child(ValType t) {
             if (is_group()) {
                 throw std::runtime_error("Group children must have names");
 
@@ -367,7 +377,7 @@ namespace Configinator5000 {
             }
         }
 
-        Setting &add_child( const std::string &name, setting_type t) {
+        Setting &add_child( const std::string &name, ValType t) {
 
             if (!is_group()) {
                 throw std::runtime_error("Only group children may have names");
@@ -392,7 +402,7 @@ namespace Configinator5000 {
                 return nullptr;
 
             } else if (is_array()) {
-                setting_type target_type = deduce_scalar_type(v);
+                ValType target_type = deduce_scalar_type(v);
                 if (children_.size() > 0) {
                     if (array_type_ != target_type) {
                         return nullptr;
@@ -410,7 +420,7 @@ namespace Configinator5000 {
             }
         }
 
-        Setting* try_add_child(setting_type t) {
+        Setting* try_add_child(ValType t) {
             if (is_group()) {
                 return nullptr;
 
@@ -453,7 +463,7 @@ namespace Configinator5000 {
             }
         }
 
-        Setting* try_add_child( const std::string &name, setting_type t) {
+        Setting* try_add_child( const std::string &name, ValType t) {
 
             if (!is_group()) {
                 return nullptr;
@@ -478,7 +488,7 @@ namespace Configinator5000 {
             return int(children_.size());
         }
 
-        setting_type array_type() const {
+        ValType array_type() const {
             if (is_array()) {
                 return array_type_;
             }
@@ -531,11 +541,11 @@ namespace Configinator5000 {
 
         //used by the parser. Probably will go away
         Setting * create_child(const std::string &name) {
-            return try_add_child(name, setting_type::BOOL);
+            return try_add_child(name, ValType::BOOL);
         }
 
         Setting *create_child() {
-            return try_add_child(setting_type::BOOL);
+            return try_add_child(ValType::BOOL);
         }
 
 
@@ -543,14 +553,18 @@ namespace Configinator5000 {
     };
 
     class Parser;
+    class SchemaParser;
 
     class Config {
-        std::unique_ptr<SchemaNode>schema_tree_;
         std::unique_ptr<Setting>cfg_;
 
         // can't use unique_ptr with incomplete types.
         Parser* parser_ = nullptr;
+        SchemaParser* schema_parser_ = nullptr;
+        SchemaNode* schema_tree_ = nullptr;
+
     public :
+
         bool parse_file(std::string file_name) {
             std::ifstream strm{file_name};
             return parse(strm);
@@ -562,8 +576,10 @@ namespace Configinator5000 {
             return parse(buffer.str());
         }
 
+        bool set_schema(std::string schema_text);
+
         bool parse(const std::string &input) {
-            return parse_with_schema(input, schema_tree_.get());
+            return parse_with_schema(input);
         }
 
         Setting& get_settings() const {
@@ -575,7 +591,9 @@ namespace Configinator5000 {
         ~Config();
 
     private:
-        bool parse_with_schema(const std::string &input, const SchemaNode *schema);
+        bool parse_with_schema(const std::string &input);
+
+        bool check_against_schema();
     };
 
 

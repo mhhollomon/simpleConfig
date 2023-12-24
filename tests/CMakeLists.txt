@@ -19,3 +19,21 @@ target_link_libraries(${Testname}
     PRIVATE doctest simpleConfig)
 
 add_test(NAME ${Testname} COMMAND ${Testname})
+
+## Parse Schema Test ###########################
+set( Testname t03-parse-schema)
+add_executable (${Testname})
+target_sources(${Testname} PRIVATE "${Testname}.cpp")
+target_link_libraries(${Testname}
+    PRIVATE doctest simpleConfig)
+
+add_test(NAME ${Testname} COMMAND ${Testname})
+
+## Validate against Schema Test ###########################
+set( Testname t04-validate-with-schema)
+add_executable (${Testname})
+target_sources(${Testname} PRIVATE "${Testname}.cpp")
+target_link_libraries(${Testname}
+    PRIVATE doctest simpleConfig)
+
+add_test(NAME ${Testname} COMMAND ${Testname})

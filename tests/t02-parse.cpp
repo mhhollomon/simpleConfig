@@ -1,18 +1,18 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include <simple_config.hpp>
+#include <simpleConfig.hpp>
 
 #include <string>
 
 using namespace std::literals::string_literals;
 
 TEST_CASE("compiles") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
     CHECK(true);
 
     std::string input = R"DELIM( port 
-= 7777; )DELIM"s;
+: 7777; )DELIM"s;
 
     bool b = cfg.parse(input);
 
@@ -28,10 +28,10 @@ TEST_CASE("compiles") {
 }
 
 TEST_CASE("string") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
     CHECK(true);
 
-    std::string input = R"DELIM( port = "hello"; )DELIM"s;
+    std::string input = R"DELIM( port : "hello")DELIM"s;
 
     bool b = cfg.parse(input);
 
@@ -47,7 +47,7 @@ TEST_CASE("string") {
 
     // Multi strings
 
-    input = R"DELIM( port = "hel"
+    input = R"DELIM( port : "hel"
 "lo"
 )DELIM"s;
 
@@ -64,9 +64,9 @@ TEST_CASE("string") {
 }
 
 TEST_CASE("float") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
-    std::string input = R"DELIM( port = 42.0; )DELIM"s;
+    std::string input = R"DELIM( port : 42.0; )DELIM"s;
 
     bool b = cfg.parse(input);
 
@@ -82,13 +82,14 @@ TEST_CASE("float") {
 }
 
 TEST_CASE("bool") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
     std::string input = R"DELIM( 
-        b1 = TRUE;
+        b1: TRUE;
         b2 : FALSE
-        b3 = TruE,
+        b3 : TruE,
         b4 : fALse
+        b5 : true
  )DELIM"s;
 
     bool b = cfg.parse(input);
@@ -97,7 +98,7 @@ TEST_CASE("bool") {
 
     auto & s = cfg.get_settings();
 
-    CHECK(s.count() == 4);
+    CHECK(s.count() == 5);
     CHECK(s.exists("b1"));
     CHECK(s.at("b1").is_boolean());
     CHECK(s.at("b1").get<bool>() == true);
@@ -107,17 +108,19 @@ TEST_CASE("bool") {
     CHECK(s.at("b3").get<bool>() == true);
     CHECK(s.at("b4").is_boolean());
     CHECK(s.at("b4").get<bool>() == false);
+    CHECK(s.at("b5").is_boolean());
+    CHECK(s.at("b5").get<bool>() == true);
 }
 
 TEST_CASE("Nested Group") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
-    std::string input = R"DELIM( a = {
-    a1 = true;
-    a2 = 3;
+    std::string input = R"DELIM( a :{
+    a1 : true;
+    a2 :3;
     }
-b = {
-    b1 = {
+b : {
+    b1 : {
         bb1 : "foo",
     },
 }
@@ -143,10 +146,10 @@ b = {
 }
 
 TEST_CASE("list") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
     std::string input = R"DELIM(
-mylist = (
+mylist : (
     "A",
     { a : 3 b: "long" " string" }
     [ 1, 2 ]
@@ -178,9 +181,9 @@ mylist = (
 }
 
 TEST_CASE("array") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
-    std::string input = R"DELIM( good = [ 1, 2 ] )DELIM"s;
+    std::string input = R"DELIM( good : [ 1, 2 ] )DELIM"s;
 
     CHECK(cfg.parse(input));
 
@@ -200,19 +203,19 @@ TEST_CASE("array") {
     }
 
     // mixed
-    CHECK_FALSE(cfg.parse("bad = [1, 43.0]"));
+    CHECK_FALSE(cfg.parse("bad : [1, 43.0]"));
 
     // group
-    CHECK_FALSE(cfg.parse("bad = [1, { a : 2 }]"));
+    CHECK_FALSE(cfg.parse("bad : [1, { a : 2 }]"));
 
     // list
     CHECK_FALSE(cfg.parse("bad : [ 42.0 ( 1, 2 ) ]"));
 }
 
 TEST_CASE("errors") {
-    Configinator5000::Config cfg;
+    simpleConfig::Config cfg;
 
-    std::string input = R"DELIM( bad = $%^ )DELIM"s;
+    std::string input = R"DELIM( bad : $%^ )DELIM"s;
 
     CHECK_FALSE(cfg.parse(input));
 
