@@ -2,43 +2,31 @@
 
 #include "parser_utils.hpp"
 
+#include "error_reporter.hpp"
+
 #include <string_view>
 #include <optional>
 
 namespace simpleConfig {
-    struct ParserBase {
-
-        std::string name = "Base";
+    struct ParserBase : public ErrorReporter {
 
         std::string_view src_text;
 
         parse_loc current_loc;
 
-        error_list &errors;
 
-        int error_count = 0;
-
-        ParserBase(std::string_view text, const std::string &parser_name, error_list &errlist) : 
-            name {parser_name},
+        ParserBase(std::string_view text, const std::string &parser_name, error_list &errlist) :
+            ErrorReporter(parser_name, errlist), 
             src_text{text},
-            current_loc{text, 0, 0},
-            errors{errlist}
+            current_loc{text, 0, 0}
         {}
 
-        /***********************************************************
-         * Error utilities
-         ***********************************************************/
-
-        bool has_errors() { return error_count == 0; }
-
-        void record_error(const std::string &msg, const parse_loc &l) {
-            error_count += 1;
-            errors.add(msg, l, name);
-        }
+        using ErrorReporter::record_error;
 
         void record_error(const std::string & msg) {
             record_error(msg, current_loc);
         }
+
 
 
         /***********************************************************

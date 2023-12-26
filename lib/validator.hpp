@@ -9,21 +9,12 @@
 
 namespace simpleConfig {
 
-    struct Validator {
-        error_list &errors;
-        int error_count = 0;
+    struct Validator : public ErrorReporter {
 
         Validator(error_list &errlist) :
-            errors{errlist}
+            ErrorReporter{"Validator"s, errlist}
         {}
     
-        bool has_errors() { return error_count == 0; }
-
-        void record_error(const std::string &msg, const parse_loc &l) {
-            error_count += 1;
-            errors.add(msg, l, "Validator");
-        }
-
         bool validate(
                 Setting * setting_ptr, 
                 const SchemaNode* schema_ptr ) {
@@ -63,10 +54,10 @@ namespace simpleConfig {
                 }
 
                 if (! key_name_ok)
-                    throw std::runtime_error("Key = "s + setting_iter.first + " is not allowed.");
+                    record_error("Key = "s + setting_iter.first + " is not allowed.", {});
                 
                 if (ftype != ValType::ANY && setting_iter.second.get_type() != ftype )
-                    throw std::runtime_error("Key = "s + setting_iter.first + " has wrong type.");
+                    record_error("Key = "s + setting_iter.first + " has wrong type.", {});
                 
                 seen.insert(setting_iter.first);
 
@@ -78,8 +69,8 @@ namespace simpleConfig {
                     if (setting_iter.second.array_type() != 
                         schema_match->second.array_type) {
 
-                        throw std::runtime_error("Key = "s + setting_iter.first + 
-                            " has wrong type for array elements.");
+                        record_error("Key = "s + setting_iter.first + 
+                            " has wrong type for array elements.", {});
 
                     }
 
@@ -89,7 +80,8 @@ namespace simpleConfig {
             // If needed, check that we saw a key for the required '*' entry
 
             if (star_required && not saw_star_key)
-                throw std::runtime_error("Key = "s + star->first + " requires a 'star' entry");
+                record_error("Key = "s + star->first + 
+                    " requires a 'star' entry", {});
 
             // Run through the schema checking that required keys
             // were seen.
@@ -101,11 +93,12 @@ namespace simpleConfig {
                 
                 const auto &seen_iter = seen.find(c.first);
                 if (seen_iter == seen.end()) {
-                    throw std::runtime_error("Required key = "s + c.first + " is not present.");
+                    record_error("Required key = "s + c.first + 
+                        " is not present.", {});
                 }
             }
 
-            return true;
+            return has_errors();
 
         }
 

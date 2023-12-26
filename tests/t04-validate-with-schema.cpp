@@ -32,7 +32,7 @@ TEST_CASE("wrong key test") {
 
     cfg.set_schema(schema_text);
 
-    CHECK_THROWS(cfg.parse(config_text));
+    CHECK_FALSE(cfg.parse(config_text));
 }
 
 TEST_CASE("missing key test") {
@@ -44,7 +44,7 @@ TEST_CASE("missing key test") {
 
     cfg.set_schema(schema_text);
 
-    CHECK_THROWS(cfg.parse(config_text));
+    CHECK_FALSE(cfg.parse(config_text));
 }
 
 TEST_CASE("star test") {
@@ -60,7 +60,7 @@ TEST_CASE("star test") {
 
     config_text = "harfbuzz : true"s;
 
-    CHECK_THROWS(cfg.parse(config_text));
+    CHECK_FALSE(cfg.parse(config_text));
 
 }
 
@@ -99,7 +99,7 @@ TEST_CASE("arrays schema") {
         auto cfg = Config();
 
         CHECK(cfg.set_schema(schema_text));
-        CHECK_THROWS(cfg.parse(config_text)); 
+        CHECK_FALSE(cfg.parse(config_text)); 
     }
 
 
