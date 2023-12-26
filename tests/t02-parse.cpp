@@ -240,5 +240,5 @@ TEST_CASE("errors") {
 
     cfg.stream_errors(buf);
 
-    CHECK(buf.str() == "line 0 : Expecting a value\nline 0 : Not at end of input!\n"s);
+    CHECK(buf.str() == "line 0 : Config: Expecting a value\nline 0 : Config: Not at end of input!\n"s);
 }

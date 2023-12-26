@@ -102,23 +102,5 @@ TEST_CASE("arrays schema") {
         CHECK_THROWS(cfg.parse(config_text)); 
     }
 
-    SUBCASE("group elements (ok)") {
-        auto schema_text = "foo : [{bar : int }]"s;
-        auto config_text = "foo : [{ bar : 3}, {baz : 6}]"s;
 
-        auto cfg = Config();
-
-        CHECK(cfg.set_schema(schema_text));
-        CHECK(cfg.parse(config_text)); 
-    }
-
-    SUBCASE("group elements (bad)") {
-        auto schema_text = "foo : [{bar : int }]"s;
-        auto config_text = "foo : [{ bar : 3}, {baz : false}]"s;
-
-        auto cfg = Config();
-
-        CHECK(cfg.set_schema(schema_text));
-        CHECK_THROWS(cfg.parse(config_text)); 
-    }
 }

@@ -8,26 +8,38 @@
 namespace simpleConfig {
     struct ParserBase {
 
-        std::string_view src;
+        std::string name = "Base";
+
+        std::string_view src_text;
 
         parse_loc current_loc;
 
-        error_list errors;
+        error_list &errors;
 
-        ParserBase(std::string_view _src) : src{_src},
-            current_loc{_src, 0, 0} {}
+        int error_count = 0;
+
+        ParserBase(std::string_view text, const std::string &parser_name, error_list &errlist) : 
+            name {parser_name},
+            src_text{text},
+            current_loc{text, 0, 0},
+            errors{errlist}
+        {}
 
         /***********************************************************
          * Error utilities
          ***********************************************************/
 
+        bool has_errors() { return error_count == 0; }
+
         void record_error(const std::string &msg, const parse_loc &l) {
-            errors.add(msg, l);
+            error_count += 1;
+            errors.add(msg, l, name);
         }
 
         void record_error(const std::string & msg) {
             record_error(msg, current_loc);
         }
+
 
         /***********************************************************
          * Input utilities

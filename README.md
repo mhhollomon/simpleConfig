@@ -85,13 +85,10 @@ baz! : {
 # the entries in the array may be any type
 # but they still must be all the same type.
 #
-# You cannot current constrain the length of the array.
+# You cannot currently constrain the length of the array.
 array_key : [ int ]
 
-# Yes, arrays may have a group as members
-
-array_key [ { name! : str, * : float} ]
-
+# Array may on have scalars (flot, int, bool) as elements.
 
 # List may be specified. There is no validation of entries
 # of the list

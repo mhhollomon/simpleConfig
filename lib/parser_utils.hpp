@@ -5,6 +5,7 @@
 #include <list>
 
 namespace simpleConfig {
+
     struct parse_loc {
         std::string_view sv;
         int offset = 0;
@@ -14,13 +15,17 @@ namespace simpleConfig {
     struct error_info {
         std::string message;
         parse_loc loc;
+        std::string src = "Unk";
 
         error_info() = default;
         error_info(const std::string &mesg, const parse_loc &l) :
             message{mesg}, loc{l} {}
 
+        error_info(const std::string &mesg, const parse_loc &l, const std::string &source) :
+            message{mesg}, loc{l}, src{source} {}
+
         friend std::ostream & operator<<(std::ostream &strm, const error_info& ei) {
-            strm << "line " << ei.loc.line << " : " << ei.message << "\n";
+            strm << "line " << ei.loc.line << " : " << ei.src << ": " << ei.message << "\n";
             return strm;
         }
     };
@@ -37,6 +42,10 @@ namespace simpleConfig {
 
         void add(const std::string &mesg, const parse_loc &l) {
             errors.emplace_back(mesg, l);
+        }
+
+        void add(const std::string &mesg, const parse_loc &l, const std::string &src) {
+            errors.emplace_back(mesg, l, src);
         }
 
         friend std::ostream & operator<<(std::ostream &strm, const error_list & el){

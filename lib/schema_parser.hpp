@@ -4,6 +4,8 @@
 
 #include "value_type.hpp"
 
+#include "schema_node.hpp"
+
 #include <string>
 #include <string_view>
 #include <charconv>
@@ -18,39 +20,15 @@ using VT = simpleConfig::ValType;
 
 namespace simpleConfig {
 
-    struct SchemaNode {
 
-        SchemaNode() = default;
-
-        SchemaNode(const std::string &name) : name(name) 
-        {}
-
-        std::string name;
-        bool required = false;
-        ValType vtype = ValType::NONE;
-        ValType array_type = ValType::NONE;
-
-        std::map<std::string, SchemaNode> subkeys;
-
-        SchemaNode* add_subkey(const std::string &name) {
-            auto [iter, done]  = subkeys.emplace(name, SchemaNode{name});
-
-            if (done) {
-                return &(iter->second);
-            } else {
-                return nullptr;
-            }
-
-        }
-
-    };
 
     struct SchemaParser : public ParserBase {
 
         SchemaNode *schema;
 
-        SchemaParser(std::string_view src, SchemaNode* _schema) : 
-            ParserBase(src), schema{_schema}
+        SchemaParser(std::string_view src, SchemaNode* _schema, error_list & errlist) : 
+            ParserBase(src, "Schema"s, errlist),
+            schema{_schema}
         { }
 
 
@@ -70,24 +48,6 @@ namespace simpleConfig {
                 vtype = VT::STRING;
             } else if (match_string("any")) {
                 vtype = VT::ANY;
-            } else if (peek() == '{') {
-                consume(1);
-                auto *new_group = keyspec->add_subkey(".");
-                new_group->vtype = VT::GROUP;
-                vtype = VT::GROUP;
-
-                skip();
-                if (! parse_group(new_group)) {
-                    return false;
-                }
-                skip();
-                if (not (peek() == '}')) {
-                    record_error("Expecting '}' to close group");
-                    return false;
-                }
-                consume(1);
-                
-
             } else {
                 record_error("Invalid type constraint for key specifier");
                 return false;
@@ -218,6 +178,8 @@ namespace simpleConfig {
         
         bool do_parse() {
 
+            error_count = 0;
+
             skip();
 
             if (! parse_group(schema)) {
@@ -229,7 +191,7 @@ namespace simpleConfig {
                 return false;
             }
 
-            return errors.empty();
+            return has_errors();
         }
 
 

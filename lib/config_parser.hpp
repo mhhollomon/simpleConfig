@@ -21,7 +21,8 @@ namespace simpleConfig {
 
         Setting *setting;
 
-        Parser(std::string_view _src, Setting *s) : ParserBase(_src),
+        Parser(std::string_view _src, Setting *s, error_list &errlist) :
+            ParserBase(_src, "Config"s, errlist),
             setting{s}
         {}
 
@@ -472,6 +473,8 @@ namespace simpleConfig {
         
         bool do_parse() {
 
+            error_count = 0;
+
             skip();
 
             parse_group(setting);
@@ -481,7 +484,7 @@ namespace simpleConfig {
                 return false;
             }
 
-            return errors.empty();
+            return has_errors();
         }
 
     };
