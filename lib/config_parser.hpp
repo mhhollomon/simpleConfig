@@ -152,7 +152,8 @@ namespace simpleConfig {
         }
         
         //##############   match_string_value  ###############
-
+        // Supports parsing strings "next" to each other as a single
+        // string
         std::optional<std::string> match_string_value() {
             if (!match_char('"')) return std::nullopt;
 
@@ -269,30 +270,6 @@ namespace simpleConfig {
             return false;
         }
 
-        //##############   match_name #######################
-
-        std::optional<std::string> match_name() {
-
-            int pos = 0;
-            if (std::isalpha(peek(pos))) {
-                pos += 1;
-            } else {
-                return std::nullopt;
-            }
-
-            while (valid_pos(pos)) {
-                if ( peek(pos) == '_' or
-                        std::isalnum(peek(pos))) {
-                    pos += 1;
-                } else break;
-            }
-
-
-            auto retval = current_loc.sv.substr(0, pos);
-            consume(pos);
-
-            return std::string(retval);
-        }
 
         //##############   parse_list     ##############
         bool parse_list(Setting* setting) {
@@ -455,8 +432,8 @@ namespace simpleConfig {
 
             skip();
 
-            if (not match_char(':')) {
-                record_error("Expecting : after setting name");
+            if (not match_chars(0, ":=")) {
+                record_error("Expecting : or = after setting name");
                 return false;
             }
             consume(1);

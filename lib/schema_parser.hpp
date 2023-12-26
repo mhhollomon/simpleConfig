@@ -28,9 +28,11 @@ namespace simpleConfig {
         std::string name;
         bool required = false;
         ValType vtype = ValType::NONE;
+        ValType array_type = ValType::NONE;
+
         std::map<std::string, SchemaNode> subkeys;
 
-        SchemaNode* add_spec(const std::string &name) {
+        SchemaNode* add_subkey(const std::string &name) {
             auto [iter, done]  = subkeys.emplace(name, SchemaNode{name});
 
             if (done) {
@@ -51,49 +53,41 @@ namespace simpleConfig {
             ParserBase(src), schema{_schema}
         { }
 
-        //##############   match_name #######################
 
-        std::optional<std::string> match_name() {
-
-            int pos = 0;
-            if (peek(pos) == '*') {
-                consume(1);
-                return std::string("*");
-
-            } else if (std::isalpha(peek(pos))) {
-                pos += 1;
-            } else {
-                return std::nullopt;
-            }
-
-            while (valid_pos(pos)) {
-                if ( peek(pos) == '_' or
-                        std::isalnum(peek(pos))) {
-                    pos += 1;
-                } else break;
-            }
-
-
-            auto retval = current_loc.sv.substr(0, pos);
-            consume(pos);
-
-            return std::string(retval);
-        }
-
-        //##############   match_name #######################
+        //##############  parse_type_constraint #######################
 
         bool parse_type_constraint(SchemaNode * keyspec) {
 
+            ValType vtype = VT::NONE;
+
             if (match_string("int")) {
-                keyspec->vtype = VT::INTEGER;
+                vtype = VT::INTEGER;
             } else if (match_string("bool")) {
-                keyspec->vtype = VT::BOOL;
+                vtype = VT::BOOL;
             } else if (match_string("float")) {
-                keyspec->vtype = VT::FLOAT;
+                vtype = VT::FLOAT;
             } else if (match_string("string")) {
-                keyspec->vtype = VT::STRING;
+                vtype = VT::STRING;
             } else if (match_string("any")) {
-                keyspec->vtype = VT::ANY;
+                vtype = VT::ANY;
+            } else if (peek() == '{') {
+                consume(1);
+                auto *new_group = keyspec->add_subkey(".");
+                new_group->vtype = VT::GROUP;
+                vtype = VT::GROUP;
+
+                skip();
+                if (! parse_group(new_group)) {
+                    return false;
+                }
+                skip();
+                if (not (peek() == '}')) {
+                    record_error("Expecting '}' to close group");
+                    return false;
+                }
+                consume(1);
+                
+
             } else {
                 record_error("Invalid type constraint for key specifier");
                 return false;
@@ -104,6 +98,12 @@ namespace simpleConfig {
                 return false;
             }
 
+            if (keyspec->vtype == VT::ARRAY) {
+                keyspec->array_type = vtype;
+            } else {
+                keyspec->vtype = vtype;
+            }
+
             return true;
         }
 
@@ -112,7 +112,7 @@ namespace simpleConfig {
 
         bool parse_keyspec(SchemaNode* parent) {
 
-            auto name = match_name();
+            auto name = match_name(true);
             if ( ! name ) {
                 return false;
             }
@@ -132,7 +132,7 @@ namespace simpleConfig {
             }
             consume(1);
 
-            auto new_key_spec = parent->add_spec(*name);
+            auto new_key_spec = parent->add_subkey(*name);
 
             if (!new_key_spec) {
                 record_error("key spec for "s + *name + " already defined in this context");
@@ -147,7 +147,9 @@ namespace simpleConfig {
                 consume(1);
                 skip();
                 new_key_spec->vtype = VT::GROUP;
-                parse_group(new_key_spec);
+                if (! parse_group(new_key_spec)) {
+                    return false;
+                }
                 skip();
                 if (peek() == '}') {
                     consume(1);
@@ -156,6 +158,37 @@ namespace simpleConfig {
                     record_error("Expecting '}' to close group.");
                     return false;
                 }
+            } else if(peek() == '(' ) {
+                consume(1);
+                skip();
+                if (peek() == ')') {
+                    consume(1);
+                    new_key_spec->vtype = VT::LIST;
+                    return true;
+                } else {
+                    record_error("Expecting ')' to close list.");
+                    return false;
+                }
+            } else if(peek() == '[' ) {
+                new_key_spec->vtype = VT::ARRAY;
+                consume(1);
+                skip();
+
+                if (! parse_type_constraint(new_key_spec)) {
+                    record_error("Invalid type specification ffor array");
+                    return false;
+                }
+
+                skip();
+                if (peek() == ']') {
+                    consume(1);
+                    return true;
+                } else {
+                    record_error("Expecting ']' to close array.");
+                    return false;
+                }
+           
+
             } else {
                 return parse_type_constraint(new_key_spec);
             }            
@@ -187,7 +220,9 @@ namespace simpleConfig {
 
             skip();
 
-            parse_group(schema);
+            if (! parse_group(schema)) {
+                return false;
+            }
 
             if (! eoi()) {
                 record_error("Not at end of input!");

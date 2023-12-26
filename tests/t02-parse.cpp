@@ -27,11 +27,28 @@ TEST_CASE("compiles") {
     CHECK(s.at("port").get<int>() == 7777);
 }
 
+TEST_CASE("bad names") {
+    simpleConfig::Config cfg;
+
+    std::string input = "-port : 42"s;
+    CHECK_FALSE(cfg.parse(input));
+
+    input = "_port : 42"s;
+    CHECK_FALSE(cfg.parse(input));
+
+    input = "* : 42"s;
+    CHECK_FALSE(cfg.parse(input));
+
+    input = "1st_key : 42"s;
+    CHECK_FALSE(cfg.parse(input));
+
+}
+
 TEST_CASE("string") {
     simpleConfig::Config cfg;
     CHECK(true);
 
-    std::string input = R"DELIM( port : "hello")DELIM"s;
+    std::string input = R"DELIM( port = "hello")DELIM"s;
 
     bool b = cfg.parse(input);
 
@@ -66,7 +83,7 @@ TEST_CASE("string") {
 TEST_CASE("float") {
     simpleConfig::Config cfg;
 
-    std::string input = R"DELIM( port : 42.0; )DELIM"s;
+    std::string input = R"DELIM( port-number = 42.0; )DELIM"s;
 
     bool b = cfg.parse(input);
 
@@ -75,10 +92,10 @@ TEST_CASE("float") {
     auto & s = cfg.get_settings();
 
     CHECK(s.count() == 1);
-    CHECK(s.exists("port"));
+    CHECK(s.exists("port-number"));
     CHECK(s.is_group());
-    CHECK(s.at("port").is_float());
-    CHECK(s.at("port").get<double>() == 42.0);
+    CHECK(s.at("port-number").is_float());
+    CHECK(s.at("port-number").get<double>() == 42.0);
 }
 
 TEST_CASE("bool") {

@@ -3,6 +3,7 @@
 #include "parser_utils.hpp"
 
 #include <string_view>
+#include <optional>
 
 namespace simpleConfig {
     struct ParserBase {
@@ -67,6 +68,76 @@ namespace simpleConfig {
                 peek(pos) == '_'
                 )
             );
+        }
+
+        //##############   match_name #######################
+        // Used to match the key for a key/value pair
+        // When in schema_mode a single '*' is valid
+        // as is a name beginning with '_'.
+        // Otherwise, it must start with a letter
+        // and only consist of letters, numbers and underbars.
+        std::optional<std::string> match_name(bool schema_mode = false) {
+
+            int pos = 0;
+            bool underbar_start = false;
+            if (schema_mode && peek(pos) == '*') {
+                if (!check_string_end(1))
+                    return std::nullopt;
+                consume(1);
+                
+                return std::string("*");
+
+            } else if (schema_mode && peek(pos) == '_') {
+                pos += 1;
+                underbar_start = true;
+            } else if (std::isalpha(peek(pos))) {
+                pos += 1;
+            } else {
+                return std::nullopt;
+            }
+
+            if (underbar_start) {
+                if (std::isalpha(peek(pos))) {
+                    pos += 1;
+                } else {
+                    return std::nullopt;
+                }
+            }
+
+            while (valid_pos(pos)) {
+                if ( match_chars(pos, "_-") or
+                        std::isalnum(peek(pos))) {
+                    pos += 1;
+                } else break;
+            }
+
+
+            auto retval = current_loc.sv.substr(0, pos);
+            consume(pos);
+
+            return std::string(retval);
+        }
+
+        //##############   CHAR utils #######################
+
+        bool match_char(int pos, char c) {
+            return (valid_pos(pos) and peek(pos) == c);
+        }
+
+        bool match_char(char c) {
+            return peek() == c;
+        }
+
+        bool match_chars(int pos, const char * c) {
+            if (!valid_pos(pos)) return false;
+            char t  = peek(pos);
+
+            while (*c) {
+                if (*c == t) return true;
+                ++c;
+            }
+
+            return false;
         }
 
         /****************************************************************
@@ -159,25 +230,6 @@ namespace simpleConfig {
             return true;
         };
 
-        bool match_char(int pos, char c) {
-            return (valid_pos(pos) and peek(pos) == c);
-        }
-
-        bool match_char(char c) {
-            return peek() == c;
-        }
-
-        bool match_chars(int pos, const char * c) {
-            if (!valid_pos(pos)) return false;
-            char t  = peek(pos);
-
-            while (*c) {
-                if (*c == t) return true;
-                ++c;
-            }
-
-            return false;
-        }
 
     };
 

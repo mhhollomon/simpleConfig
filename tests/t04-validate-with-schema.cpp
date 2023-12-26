@@ -58,8 +58,67 @@ TEST_CASE("star test") {
 
     CHECK(cfg.parse(config_text));
 
-    config_text = "harfbuzz : true "s;
+    config_text = "harfbuzz : true"s;
 
     CHECK_THROWS(cfg.parse(config_text));
 
+}
+
+TEST_CASE("nested schema") {
+    auto schema_text = "foo : int bar :{ alpha : int * : any}"s;
+    auto config_text = "foo : 32, bar : { x : 74 }"s;
+
+    auto cfg = Config();
+
+    CHECK(cfg.set_schema(schema_text));
+
+    CHECK(cfg.parse(config_text)); 
+
+    config_text = "foo : 32, bar : {}"s;
+    CHECK(cfg.parse(config_text)); 
+
+}
+
+TEST_CASE("arrays schema") {
+
+    SUBCASE("simple (ok)") {
+        auto schema_text = "foo : [int]"s;
+        auto config_text = "foo : [1, 2, 3]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+
+        CHECK(cfg.parse(config_text));
+    }
+
+    SUBCASE("simple (bad)") {
+        auto schema_text = "foo : [int]"s;
+        auto config_text = "foo : [true]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_THROWS(cfg.parse(config_text)); 
+    }
+
+    SUBCASE("group elements (ok)") {
+        auto schema_text = "foo : [{bar : int }]"s;
+        auto config_text = "foo : [{ bar : 3}, {baz : 6}]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+    }
+
+    SUBCASE("group elements (bad)") {
+        auto schema_text = "foo : [{bar : int }]"s;
+        auto config_text = "foo : [{ bar : 3}, {baz : false}]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_THROWS(cfg.parse(config_text)); 
+    }
 }
