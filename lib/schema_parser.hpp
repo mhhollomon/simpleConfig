@@ -20,6 +20,21 @@ using VT = simpleConfig::ValType;
 
 namespace simpleConfig {
 
+    struct type_info {
+        ValType vtype = ValType::NONE;
+        bool normal = true;
+    };
+
+    std::map<std::string, type_info>type_map = {
+        {"int", {ValType::INTEGER, true}},
+        {"bool", {ValType::BOOL, true}},
+        {"float", {ValType::FLOAT, true}},
+        {"string", {ValType::STRING, true}},
+        {"any", {ValType::ANY, true}},
+        {"group", {ValType::GROUP, false}},
+        {"array", {ValType::ARRAY, false}},
+        {"list", {ValType::LIST, false}}
+    };
 
 
     struct SchemaParser : public ParserBase {
@@ -34,22 +49,20 @@ namespace simpleConfig {
 
         //##############  parse_type_constraint #######################
 
-        bool parse_type_constraint(SchemaNode * keyspec) {
+        bool parse_type_constraint(SchemaNode * keyspec, bool extended = false) {
 
             ValType vtype = VT::NONE;
 
-            if (match_string("int")) {
-                vtype = VT::INTEGER;
-            } else if (match_string("bool")) {
-                vtype = VT::BOOL;
-            } else if (match_string("float")) {
-                vtype = VT::FLOAT;
-            } else if (match_string("string")) {
-                vtype = VT::STRING;
-            } else if (match_string("any")) {
-                vtype = VT::ANY;
-            } else {
-                record_error("Invalid type constraint for key specifier");
+            for (auto const &iter : type_map ){
+                if (not extended and not iter.second.normal) continue;
+                if (match_string(iter.first)) {
+                    vtype = iter.second.vtype;
+                    break;
+                }
+            }
+
+            if (vtype == VT::NONE) {
+                record_error("Invalid or missing type constraint for key specifier");
                 return false;
             }
 
@@ -106,8 +119,7 @@ namespace simpleConfig {
             if (peek() == '{') {
                 consume(1);
                 skip();
-                new_key_spec->vtype = VT::GROUP;
-                if (! parse_group(new_key_spec)) {
+                if (! parse_extended_group(new_key_spec)) {
                     return false;
                 }
                 skip();
@@ -154,10 +166,49 @@ namespace simpleConfig {
             }            
         }
 
+        //############## parse_type_spec #######################
+        bool parse_type_spec(SchemaNode *parent){
+            if (match_string("_t") or match_string("_type")) {
+                skip();
+                if (peek() != ':') {
+                    record_error("Expecting ':' between key and value");
+                    return false;
+                }
+                skip();
 
-        //##############   parse_group #####################
+                if (!parse_type_constraint(parent, true))
+                    // parse_type_constraint will have registered the error.
+                    return false;
 
-        bool parse_group(SchemaNode * parent) {
+                skip();
+                if (match_chars(0, ";,"))
+                    consume(1);
+                
+                return true;
+            }
+
+            return false;
+
+        }
+
+        //##############   parse_extended_group #####################
+        bool parse_extended_group(SchemaNode * parent) {
+
+            bool at_least_one = false;
+            parse_type_spec(parent);
+
+            if (parent->vtype == VT::GROUP) {
+                at_least_one = true; 
+                parse_simple_group(parent);
+            } else if (parent->vtype == VT::NONE) {
+                at_least_one = parse_simple_group(parent);
+            }
+
+            return at_least_one;
+        }
+        //##############   parse_simple_group #####################
+
+        bool parse_simple_group(SchemaNode * parent) {
             bool at_least_one = false;
             while (1) {
                 if (!parse_keyspec(parent)) break;
@@ -182,7 +233,8 @@ namespace simpleConfig {
 
             skip();
 
-            if (! parse_group(schema)) {
+            if (! parse_simple_group(schema)) {
+                record_error("No keys seen");
                 return false;
             }
 
@@ -191,7 +243,7 @@ namespace simpleConfig {
                 return false;
             }
 
-            return has_errors();
+            return not has_errors();
         }
 
 

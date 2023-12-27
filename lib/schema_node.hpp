@@ -32,6 +32,24 @@ namespace simpleConfig {
 
         }
 
+        bool contains_underbar_keys() {
+            for (auto const &iter : subkeys) {
+                if (iter.first.front() == '_')
+                    return true;
+            }
+            return false;
+        }
+
+        bool contains_key(std::string k) {
+             auto const & iter1 = subkeys.find(k); 
+             return (iter1 != subkeys.end());   
+        }
+
+        bool is_extended() {
+            return contains_key("_t") or 
+                    contains_key("_type");
+        }
+
     };
 
 }
