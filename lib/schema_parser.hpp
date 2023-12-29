@@ -393,6 +393,9 @@ namespace simpleConfig {
             skip();
             ENTER;
 
+            // This really shouldn't be necessary.
+            parent->range_limited = false;
+
 
             if (match_keyword({"_range"})) {
 
@@ -411,7 +414,7 @@ namespace simpleConfig {
 
                 optional_sep();
 
-                if (parent->vtype != VT::INTEGER or 
+                if (parent->vtype != VT::INTEGER and 
                         parent->array_type != VT::INTEGER) {
                     record_error("_range tag is only valid if type is int");
                     RETURN(false);

@@ -7,6 +7,7 @@
 
 #include <set>
 #include <map>
+#include <iostream>
 
 namespace simpleConfig {
 
@@ -39,17 +40,22 @@ namespace simpleConfig {
 
                 bool key_name_ok = false;
                 ValType ftype = ValType::NONE;
+
+                SchemaNode const *snode = nullptr;
+
                 if (schema_match == schema_ptr->subkeys.end()) {
                     if (has_star) {
+                        snode = &(star->second);
                         key_name_ok = true;
-                        ftype = star->second.vtype;
+                        ftype = snode->vtype;
                         saw_star_key = true;
                     } else {
                         key_name_ok = false;
                     }
                 } else {
+                    snode = &(schema_match->second);
                     key_name_ok = true;
-                    ftype = schema_match->second.vtype;
+                    ftype = snode->vtype;
                 }
 
                 if (! key_name_ok)
@@ -60,44 +66,44 @@ namespace simpleConfig {
                 
                 seen.insert(sett_name);
 
-                auto const &sn = schema_match->second;
+                if (snode) {
+                    if (setting.is_group()) {
+                        validate(&setting, snode);
+                    } else if (setting.is_array()) {
+                        if (setting.array_type() != 
+                            snode->array_type) {
 
-                if (setting.is_group()) {
-                    validate(&setting, &sn);
-                } else if (setting.is_array()) {
-                    if (setting.array_type() != 
-                        sn.array_type) {
+                            record_error("Key = "s + sett_name + 
+                                " has wrong type for array elements.", {});
 
-                        record_error("Key = "s + sett_name + 
-                            " has wrong type for array elements.", {});
+                        }
 
-                    }
+                        auto range = snode->length;
+                        auto length = setting.count();
+                        if (range.max > 0 && (length < range.min || length > range.max)) {
+                            record_error("Number of array elements is out of range", {});
+                        }
 
-                    auto range = sn.length;
-                    auto length = setting.count();
-                    if (range.max > 0 && (length < range.min || length > range.max)) {
-                        record_error("Number of array elements is out of range", {});
-                    }
-
-                    if (sn.array_type == VT::INTEGER && sn.range_limited) {
-                        int index = -1;
-                        for (auto const &child : setting.enumerate()) {
-                            index += 1;
-                            int v = child.second.get<int>();
-                            if (v > sn.range.max || v < sn.range.min ) {
-                                record_error("Array element value is out of range" , {});
+                        if (snode->array_type == ValType::INTEGER && snode->range_limited) {
+                            for (auto const &child : setting) {
+                                int v = child.get<int>();
+                                if (v > snode->range.max || v < snode->range.min ) {
+                                    record_error("Array element value is out of range" , {});
+                                }
                             }
                         }
-                    }
 
-                } else if (setting.is_integer()) {
-                    if (sn.range_limited) {
-                        int v = setting.get<int>();
-                        if (v > sn.range.max || v < sn.range.min ) {
-                            record_error( "scalar value is out of range" , {});
+                    } else if (setting.is_integer()) {
+                        std::cout << "  Checking key " << sett_name << " as range limited "<<
+                                snode->range << "\n";
+                        if (snode->range_limited) {
+                            int v = setting.get<int>();
+                            if (v > snode->range.max || v < snode->range.min ) {
+                                record_error( "scalar value is out of range" , {});
+                            }
                         }
-                    }
-                }          
+                    }          
+                }
             }
 
             // If needed, check that we saw a key for the required '*' entry

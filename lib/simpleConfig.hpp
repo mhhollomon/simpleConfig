@@ -22,8 +22,8 @@ namespace simpleConfig {
     struct SchemaNode;
 
 
-    class Parser;
-    class SchemaParser;
+    struct Parser;
+    struct SchemaParser;
 
     class Config {
         std::unique_ptr<Setting>cfg_;
@@ -57,6 +57,8 @@ namespace simpleConfig {
         Setting& get_settings() const {
             return *cfg_;
         }
+
+        const error_list &get_errors() const { return errors; }
 
         std::ostream &stream_errors(std::ostream& strm);
 

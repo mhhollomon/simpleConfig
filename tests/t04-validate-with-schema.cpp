@@ -74,6 +74,8 @@ TEST_CASE("nested schema") {
 
     CHECK(cfg.set_schema(schema_text));
 
+    INFO(cfg.get_errors());
+
     CHECK(cfg.parse(config_text)); 
 
     config_text = "foo : 32, bar : {}"s;
@@ -158,7 +160,7 @@ TEST_CASE("value limiting integers") {
         auto config_text = "foo : 3"s;
 
         auto cfg = Config();
-
+        INFO(cfg.get_errors());
         CHECK(cfg.set_schema(schema_text));
         CHECK(cfg.parse(config_text)); 
 
@@ -176,4 +178,30 @@ TEST_CASE("value limiting integers") {
         CHECK_FALSE(cfg.parse(config_text)); 
 
     }
+
+    SUBCASE("array setting (ok)") {
+        auto schema_text = "foo : { _t : array _ar : int  _range : [-5, 5]}"s;
+        auto config_text = "foo : [1 3 4 0 -5]"s;
+
+        auto cfg = Config();
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("array setting (bad)") {
+        auto schema_text = "foo : { _t : array; _ar : int;  _range : [-5, 5]}"s;
+        auto config_text = "foo : [1 3 4 0 100 ]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+        config_text = "foo : [1 3 -100 0 2 ]"s;
+        CHECK_FALSE(cfg.parse(config_text)); 
+
+    }
+
+
 }
