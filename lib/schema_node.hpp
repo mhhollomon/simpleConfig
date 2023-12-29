@@ -1,9 +1,11 @@
 #pragma once
 
+#include "value_type.hpp"
+#include "int_range.hpp"
+
 #include <map>
 #include <string>
 
-#include "value_type.hpp"
 
 namespace simpleConfig {
 
@@ -18,6 +20,10 @@ namespace simpleConfig {
         bool required = false;
         ValType vtype = ValType::NONE;
         ValType array_type = ValType::NONE;
+
+        int_range length{};
+        int_range range{};
+        bool range_limited = false;
 
         std::map<std::string, SchemaNode> subkeys;
 

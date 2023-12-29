@@ -13,6 +13,7 @@
 #include <sstream>
 #include <map>
 #include <memory>
+#include <iostream>
 
 using namespace std::literals::string_literals;
 
@@ -46,23 +47,87 @@ namespace simpleConfig {
             schema{_schema}
         { }
 
+        //############## parse_range #########################
+        std::optional<int_range> parse_range(bool length_mode) {
+            skip();
+            ENTER;
+            int_range retval{};
 
-        //##############  parse_type_constraint #######################
+            if ( ! expect_char('['))
+                RETURN_NULLOPT;
 
-        bool parse_type_constraint(SchemaNode * keyspec, bool extended = false) {
+            auto min = match_integer_value();
+            if (!min) {
+                record_error("Invalid range entry.");
+                RETURN_NULLOPT
+            }
+
+            retval.min = *min;
+            retval.max = *min;
+
+            optional_sep();
+
+            auto max = match_integer_value();
+            if (max) {
+                skip();
+                optional_sep();
+                retval.max = *max;
+                skip();
+            } else if (! length_mode) {
+                record_error("Missing max value");
+                RETURN_NULLOPT;
+            }
+
+            if (!expect_char(']')) {
+                record_error("Missing ']' closing the range spec.");
+                RETURN_NULLOPT;
+            }
+
+            if (length_mode && retval.min < 0) {
+                record_error("Min range entry cannot be less than 0.");
+                RETURN_NULLOPT
+            }
+
+            if (length_mode && retval.max <= 0) {
+                record_error("Max range entry cannot be less than or equal to 0.");
+                RETURN_NULLOPT
+            }
+
+            if (retval.min > retval.max) {
+                record_error("Min must be less than or equal to Max in range");
+                RETURN_NULLOPT
+            }
+
+
+            RETURN(retval);            
+        }
+
+        //##############  parse_typename #######################
+
+        bool parse_typename(SchemaNode * keyspec, bool extended = false) {
+            skip();
+            ENTER;
 
             ValType vtype = VT::NONE;
 
+
             for (auto const &iter : type_map ){
-                if (not extended and not iter.second.normal) continue;
+                if (not extended and not iter.second.normal) {
+                    std::cout << "Skipping type name '"s + iter.first + "'\n";
+                    continue;
+                }
+                std::cout << "Trying type name '"s + iter.first + "'\n";
+
                 if (match_string(iter.first)) {
+                    std::cout << "--- Found '" + iter.first +"'\n";
                     vtype = iter.second.vtype;
                     break;
                 }
             }
 
             if (vtype == VT::NONE) {
-                record_error("Invalid or missing type constraint for key specifier");
+                record_error("Invalid or missing type constraint for key '"s + 
+                        keyspec->name + "'");
                 return false;
             }
 
@@ -76,14 +141,74 @@ namespace simpleConfig {
             } else {
                 keyspec->vtype = vtype;
             }
-
             return true;
         }
 
+        //############## parse_constraint ##################
 
-        //##############  key spec ##########################
+        bool parse_constraint(SchemaNode* parent) {
+            skip();
+            ENTER;
+
+            if (peek() == '{') {
+                consume(1);
+                skip();
+                if (! parse_extended_list(parent)) {
+                    return false;
+                }
+                skip();
+                if (peek() == '}') {
+                    consume(1);
+                    return true;
+                } else {
+                    std::stringstream ss;
+
+                    ss << "Expecting '}' to close group. Next char = '" <<  (int)peek(0)  << "'\n";
+
+                    record_error(ss.str());
+                    return false;
+                }
+            } else if(peek() == '(' ) {
+                consume(1);
+                skip();
+                if (peek() == ')') {
+                    consume(1);
+                    parent->vtype = VT::LIST;
+                    return true;
+                } else {
+                    record_error("Expecting ')' to close list.");
+                    return false;
+                }
+            } else if(peek() == '[' ) {
+                parent->vtype = VT::ARRAY;
+                consume(1);
+
+                if (! parse_typename(parent)) {
+                    record_error("Invalid type specification for array");
+                    return false;
+                }
+
+                skip();
+                if (peek() == ']') {
+                    consume(1);
+                    return true;
+                } else {
+                    record_error("Expecting ']' to close array.");
+                    return false;
+                }
+           
+
+            } else {
+                return parse_typename(parent);
+            }            
+
+        }
+
+        //##############  keyspec ##########################
 
         bool parse_keyspec(SchemaNode* parent) {
+            skip();
+            ENTER;
 
             auto name = match_name(true);
             if ( ! name ) {
@@ -116,134 +241,265 @@ namespace simpleConfig {
 
             skip();
 
-            if (peek() == '{') {
-                consume(1);
-                skip();
-                if (! parse_extended_group(new_key_spec)) {
-                    return false;
-                }
-                skip();
-                if (peek() == '}') {
-                    consume(1);
-                    return true;
-                } else {
-                    record_error("Expecting '}' to close group.");
-                    return false;
-                }
-            } else if(peek() == '(' ) {
-                consume(1);
-                skip();
-                if (peek() == ')') {
-                    consume(1);
-                    new_key_spec->vtype = VT::LIST;
-                    return true;
-                } else {
-                    record_error("Expecting ')' to close list.");
-                    return false;
-                }
-            } else if(peek() == '[' ) {
-                new_key_spec->vtype = VT::ARRAY;
-                consume(1);
-                skip();
+            return parse_constraint(new_key_spec);
 
-                if (! parse_type_constraint(new_key_spec)) {
-                    record_error("Invalid type specification ffor array");
-                    return false;
-                }
-
-                skip();
-                if (peek() == ']') {
-                    consume(1);
-                    return true;
-                } else {
-                    record_error("Expecting ']' to close array.");
-                    return false;
-                }
-           
-
-            } else {
-                return parse_type_constraint(new_key_spec);
-            }            
         }
 
-        //############## parse_type_spec #######################
-        bool parse_type_spec(SchemaNode *parent){
-            if (match_string("_t") or match_string("_type")) {
+        //############## parse_ex_typespec #######################
+        bool parse_ex_typespec(SchemaNode *parent){
+            skip();
+            ENTER;
+
+
+            // check the longer alt first.
+            if (match_keyword({"_type", "_t"})) {
+
                 skip();
-                if (peek() != ':') {
+
+                if (! expect_char(':')) {
                     record_error("Expecting ':' between key and value");
-                    return false;
+                    RETURN(false);
                 }
-                skip();
 
-                if (!parse_type_constraint(parent, true))
-                    // parse_type_constraint will have registered the error.
-                    return false;
+                if (!parse_typename(parent, true)) {
+                    // parse_typename will have registered the error.
+                    RETURN(false);
+                }
 
-                skip();
-                if (match_chars(0, ";,"))
-                    consume(1);
+                optional_sep();
                 
-                return true;
+                RETURN(true);
             }
 
-            return false;
+            RETURN(false);
 
         }
 
-        //##############   parse_extended_group #####################
-        bool parse_extended_group(SchemaNode * parent) {
+        //############## parse_ex_required #######################
+        bool parse_ex_required(SchemaNode *parent) {
+            skip();
+            ENTER;
+
+            auto old_loc = current_loc;
+            
+            if (match_keyword({"_required", "_r"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN(false);
+                }
+                skip();
+                auto opt_required = match_bool_value();
+                if (!opt_required) {
+                    record_error("Expecting a boolean literal (true/false)");
+                    RETURN(false);
+                }
+
+                optional_sep();
+                
+                if (parent->required) {
+                    record_error("Cannot use both the  '_required' tag and the '!' operator.",
+                        old_loc);
+                    RETURN(false);
+                } else {
+                    parent->required = *opt_required;
+                }
+
+                RETURN(true);
+            }
+
+            RETURN(false);
+
+        }
+
+
+        //############## parse_ex_arrtype #######################
+        bool parse_ex_arrtype(SchemaNode *parent){
+            skip();
+            ENTER;
+
+
+            // check the longer alt first.
+            if (match_keyword({"_arrtype", "_ar"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN(false);
+                }
+
+                if (!parse_typename(parent, true)) {
+                    // parse_typename will have registered the error.
+                    RETURN(false);
+                }
+
+                optional_sep();
+
+                if (parent->vtype != VT::ARRAY) {
+                    record_error("_arrtype tag is only valid if type is array");
+                    RETURN(false);
+                }
+                
+                RETURN(true);
+            }
+
+            RETURN(false);
+
+        }
+
+        //############## parse_ex_length #######################
+        bool parse_ex_length(SchemaNode *parent){
+            skip();
+            ENTER;
+
+
+            // check the longer alt first.
+            if (match_keyword({"_length", "_len"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN(false);
+                }
+
+                auto range = parse_range(true);
+
+                if (!range) {
+                    RETURN(false);
+                }
+
+                parent->length = *range;
+
+                optional_sep();
+
+                if (parent->vtype != VT::ARRAY) {
+                    record_error("_length tag is only valid if type is array");
+                    RETURN(false);
+                }
+                
+                RETURN(true);
+            }
+
+            RETURN(false);
+
+        }
+
+        //############## parse_ex_range #######################
+        bool parse_ex_range(SchemaNode *parent){
+            skip();
+            ENTER;
+
+
+            if (match_keyword({"_range"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN(false);
+                }
+
+                auto range = parse_range(false);
+
+                if (!range) {
+                    RETURN(false);
+                }
+
+                optional_sep();
+
+                if (parent->vtype != VT::INTEGER or 
+                        parent->array_type != VT::INTEGER) {
+                    record_error("_range tag is only valid if type is int");
+                    RETURN(false);
+                }
+
+                parent->range = *range;
+                parent->range_limited = true;
+                
+                RETURN(true);
+            }
+
+            RETURN(false);
+
+        }
+
+        //##############   parse_extended_list #####################
+        bool parse_extended_list(SchemaNode * parent) {
+            skip();
+            ENTER;
 
             bool at_least_one = false;
-            parse_type_spec(parent);
+            if (parse_ex_typespec(parent)) {
+                // sub tags check to make sure they
+                // are in a valid context.
+                parse_ex_required(parent);
+                parse_ex_arrtype(parent);
+                parse_ex_length(parent);
+                parse_ex_range(parent);
+            }
 
             if (parent->vtype == VT::GROUP) {
                 at_least_one = true; 
-                parse_simple_group(parent);
+                parse_keyspec_list(parent);
             } else if (parent->vtype == VT::NONE) {
-                at_least_one = parse_simple_group(parent);
+                at_least_one = parse_keyspec_list(parent);
+                if (at_least_one)
+                    parent->vtype = VT::GROUP;
+            } else {
+                at_least_one = true;
             }
-
-            return at_least_one;
+            RETURN(at_least_one);
         }
-        //##############   parse_simple_group #####################
 
-        bool parse_simple_group(SchemaNode * parent) {
+        //##############   parse_keyspec_list #####################
+
+        bool parse_keyspec_list(SchemaNode * parent) {
+            skip();
+            ENTER;
+
             bool at_least_one = false;
             while (1) {
                 if (!parse_keyspec(parent)) break;
                 at_least_one = true;
 
-                if (match_chars(0, ";,")) {
-                    consume(1);
-                }
+                optional_sep();
 
                 skip();
             }
 
-            return at_least_one;
+            RETURN(at_least_one);
         }
 
 
         //##############   do_parse  #####################
         
         bool do_parse() {
+            ENTER;
 
             error_count = 0;
 
+            std::cout << "Parsing : " << src_text << "\n";
+
             skip();
 
-            if (! parse_simple_group(schema)) {
+            if (! parse_keyspec_list(schema)) {
                 record_error("No keys seen");
-                return false;
+                RETURN(false);
             }
 
             if (! eoi()) {
-                record_error("Not at end of input!");
-                return false;
+                std::stringstream ss;
+
+                ss << "Not at end of input! Next char = '" <<  (int)peek(0)  << "'\n";
+                record_error(ss.str());
+                RETURN(false);
             }
 
-            return not has_errors();
+            RETURN(not has_errors());
         }
 
 

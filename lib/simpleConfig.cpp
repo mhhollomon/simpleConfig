@@ -41,6 +41,7 @@ namespace simpleConfig {
         auto parse_ok = parser_->do_parse();
 
         if (! parse_ok) {
+            std::cout << "--- CONFIG PARSE FAILED ---\n";
             stream_errors(std::cout);
         }
 
@@ -58,7 +59,7 @@ namespace simpleConfig {
 
     bool Config::check_against_schema() {
         // double check;
-        if (! cfg_ || ! schema_tree_ ) return true;
+        //if (! cfg_ || ! schema_tree_ ) return true;
 
         auto validator = Validator(errors);
 

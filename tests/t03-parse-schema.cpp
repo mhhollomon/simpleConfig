@@ -26,6 +26,8 @@ TEST_CASE("simple schema") {
 
     auto *node = parser.schema;
 
+    INFO(std::cout << parser.errors);
+
     CHECK(results);
 
     CHECK(node->subkeys.size() == 1);
@@ -50,7 +52,7 @@ TEST_CASE("check names") {
         auto text = "_x : int"s;
 
         auto parser = setup_schema_parser(text);
-        CHECK(parser.do_parse());
+        CHECK_FALSE(parser.do_parse());
     }
 
     SUBCASE("dash at start (bad)") {
@@ -74,26 +76,6 @@ TEST_CASE("check names") {
         CHECK_FALSE(parser.do_parse());
     }
 
-    SUBCASE("digit after underbar at start (bad)") {
-        auto text = "_3-blind_mice : int"s;
-
-        auto parser = setup_schema_parser(text);
-        CHECK_FALSE(parser.do_parse());
-    }
-
-    SUBCASE("dash after underbar at start (bad)") {
-        auto text = "_-what : int"s;
-
-        auto parser = setup_schema_parser(text);
-        CHECK_FALSE(parser.do_parse());
-    }
-
-    SUBCASE("double underbar at start (bad)") {
-        auto text = "__underbar : int"s;
-
-        auto parser = setup_schema_parser(text);
-        CHECK_FALSE(parser.do_parse());
-    }
 
     SUBCASE("double underbar in middle (ok)") {
         auto text = "under__bar : int"s;
@@ -195,4 +177,129 @@ TEST_CASE("arrays") {
         CHECK_FALSE(parser.do_parse());
     }
 
+}
+
+TEST_CASE("simple extended") {
+    SUBCASE("just type") {
+        auto text = R"DELIM(
+            key : { _t : int },
+            key_string : { _type : string };
+            key_bool : {_t : bool }
+            k-float : { _type : float },
+            k-any : {_t:
+                any}
+        )DELIM"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+        CHECK(parser.do_parse());
+    }
+
+    SUBCASE("required (ok)") {
+        auto text = "key : { _t : int, _r : tRuE}"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK(parser.do_parse());
+
+        auto *node = parser.schema;
+
+        CHECK(node->subkeys["key"].required);
+
+    }
+
+    SUBCASE("required (bad)") {
+        // can't use the '!' with '_required'
+        auto text = "key! : { _t : int; _required : tRuE}"s;
+        auto parser = setup_schema_parser(text);
+        CHECK_FALSE(parser.do_parse());
+    }
+
+    SUBCASE("group keys") {
+        // note this also shows you can mix and match
+        // concise and extended formats.
+        auto text = "key : { _t : group, k2 : int *! : { _t : any }}"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK(parser.do_parse());
+
+        auto *node = parser.schema;
+
+        CHECK(node->subkeys["key"].vtype == ValType::GROUP);
+
+    }
+
+    SUBCASE("array keys") {
+        auto text = "key : { _t : array, _ar : int }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK(parser.do_parse());
+
+    }
+
+    SUBCASE("array type (bad)") {
+        auto text = "key : { _t : group, _arraytype : int }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
+
+}
+
+TEST_CASE("array length") {
+
+    SUBCASE("one entry") {
+        auto text = "key : { _t : array, _arrtype : int, _len : [3] }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK(parser.do_parse());
+
+        auto kn = parser.schema->subkeys["key"];
+
+        CHECK(kn.length == int_range(3, 3));
+
+    }
+    
+    SUBCASE("one entry (bad)") {
+        auto text = "key : { _t : array, _arrtype : int, _len : [-2] }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+    }
+
+    SUBCASE("two entries") {
+        auto text = "key : { _t : array, _arrtype : int, _len : [3, 5] }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK(parser.do_parse());
+
+        auto kn = parser.schema->subkeys["key"];
+
+        CHECK(kn.length == int_range(3, 5));
+
+    }
+
+    SUBCASE("two entries [bad]") {
+        auto text = "key : { _t : array, _arrtype : int, _len : [6, 2] }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
+
+    SUBCASE("_len with non-array [bad]") {
+        auto text = "key : { _t : int,  _len : [6, 2] }"s;
+        auto parser = setup_schema_parser(text);
+        INFO(std::cout << parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
 }

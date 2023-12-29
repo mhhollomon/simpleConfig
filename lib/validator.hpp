@@ -3,6 +3,7 @@
 #include "setting.hpp"
 #include "schema_node.hpp"
 #include "parser_utils.hpp"
+#include "error_reporter.hpp"
 
 #include <set>
 #include <map>
@@ -29,12 +30,10 @@ namespace simpleConfig {
                 star_required = star->second.required;
             }
 
-
-
             // Run through the config making sure the keys that are there
             // are supposed to be there and of the correct type
-            for (const auto& setting_iter : setting_ptr->enumerate()) {
-                const auto & schema_match = schema_ptr->subkeys.find(setting_iter.first);
+            for (const auto& [sett_name, setting] : setting_ptr->enumerate()) {
+                const auto & schema_match = schema_ptr->subkeys.find(sett_name);
 
                 //std::cout << "Check key - " << setting_iter.first << "\n";
 
@@ -54,27 +53,51 @@ namespace simpleConfig {
                 }
 
                 if (! key_name_ok)
-                    record_error("Key = "s + setting_iter.first + " is not allowed.", {});
+                    record_error("Key = "s + sett_name + " is not allowed.", {});
                 
-                if (ftype != ValType::ANY && setting_iter.second.get_type() != ftype )
-                    record_error("Key = "s + setting_iter.first + " has wrong type.", {});
+                if (ftype != ValType::ANY && setting.get_type() != ftype )
+                    record_error("Key = "s + sett_name + " has wrong type.", {});
                 
-                seen.insert(setting_iter.first);
+                seen.insert(sett_name);
 
-                if (setting_iter.second.is_group()) {
-                    validate(&setting_iter.second, &(schema_match->second));
-                }
+                auto const &sn = schema_match->second;
 
-                if (setting_iter.second.is_array()) {
-                    if (setting_iter.second.array_type() != 
-                        schema_match->second.array_type) {
+                if (setting.is_group()) {
+                    validate(&setting, &sn);
+                } else if (setting.is_array()) {
+                    if (setting.array_type() != 
+                        sn.array_type) {
 
-                        record_error("Key = "s + setting_iter.first + 
+                        record_error("Key = "s + sett_name + 
                             " has wrong type for array elements.", {});
 
                     }
 
-                }           
+                    auto range = sn.length;
+                    auto length = setting.count();
+                    if (range.max > 0 && (length < range.min || length > range.max)) {
+                        record_error("Number of array elements is out of range", {});
+                    }
+
+                    if (sn.array_type == VT::INTEGER && sn.range_limited) {
+                        int index = -1;
+                        for (auto const &child : setting.enumerate()) {
+                            index += 1;
+                            int v = child.second.get<int>();
+                            if (v > sn.range.max || v < sn.range.min ) {
+                                record_error("Array element value is out of range" , {});
+                            }
+                        }
+                    }
+
+                } else if (setting.is_integer()) {
+                    if (sn.range_limited) {
+                        int v = setting.get<int>();
+                        if (v > sn.range.max || v < sn.range.min ) {
+                            record_error( "scalar value is out of range" , {});
+                        }
+                    }
+                }          
             }
 
             // If needed, check that we saw a key for the required '*' entry
@@ -98,7 +121,7 @@ namespace simpleConfig {
                 }
             }
 
-            return has_errors();
+            return not has_errors();
 
         }
 

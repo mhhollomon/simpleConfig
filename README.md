@@ -96,3 +96,48 @@ array_key : [ int ]
 list_key = ();
 
 ```
+
+```bnf
+
+Spec = keyspec_list eoi
+
+keyspec_list = ( keyvalue sep? )+
+
+keyspec = name '!'? ':' constraint
+
+sep = /[;,]/
+
+name = /\* | [a-zA-z][a-zA-Z0-9_-]*/
+
+constraint = typename | '{' extended_spec '}'
+    | '[' typename ']' | '(' ')'
+
+typename = 'int' | 'float' | 'bool' | 'string' | 'any'
+
+extended_list = 
+    ex_typespec ex_required? 
+        ex_arrtype? ex_length? 
+        ex_range? keyspec_list? |
+    keyspec_list
+     
+
+ex_typespec = ( '_t' | '_type' ) ':' extended_typename sep?
+ex_required = ( '_r' | '_required' ) ':' bool_value sep?
+ex_arrtype  = ( '_at' | "_arrtype' ) ':' int_value sep?
+ex_length   = ( '_len' | '_length' ) ':' range_value sep?
+ex_range   =  '_range' ':' range_value sep?
+
+extended_typename = typename | 'group' | 'list' | 'array'
+range_value = '[' int_value sep? (int_value sep?)? ']' sep?
+
+bool_value = /[Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]/
+int_value = /[+-]?[0-9]+ | /0[xX][0-9]+/
+```
+
+## TODO
+- Add a way to set defaults in the schema
+- Add a way to range constrain ints and floats
+- Add a way to constrain length of arrays
+- Add a way to have an "enum" like contraint
+- Add parse locations to both settings and schema
+  so that validation errors can reference them.

@@ -30,7 +30,7 @@ TEST_CASE("wrong key test") {
 
     auto cfg = Config();
 
-    cfg.set_schema(schema_text);
+    CHECK(cfg.set_schema(schema_text));
 
     CHECK_FALSE(cfg.parse(config_text));
 }
@@ -55,6 +55,8 @@ TEST_CASE("star test") {
     auto cfg = Config();
 
     CHECK(cfg.set_schema(schema_text));
+
+    //cfg.stream_errors(std::cout);
 
     CHECK(cfg.parse(config_text));
 
@@ -102,5 +104,76 @@ TEST_CASE("arrays schema") {
         CHECK_FALSE(cfg.parse(config_text)); 
     }
 
+}
 
+TEST_CASE("arrays extended schema") {
+
+    SUBCASE("simple (ok)") {
+        auto schema_text = "foo : { _t : array _ar : int}"s;
+        auto config_text = "foo : [1, 2, 3]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+
+        CHECK(cfg.parse(config_text));
+    }
+
+    SUBCASE("simple (bad)") {
+        auto schema_text = "foo : { _t : array _ar : int}"s;
+        auto config_text = "foo : [true]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+    }
+
+    SUBCASE("length check (ok))") {
+        auto schema_text = "foo : { _t : array _ar : int, _len : [2]}"s;
+        auto config_text = "foo : [1, 2]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("length check (bad))") {
+        auto schema_text = "foo : { _t : array _ar : int, _len : [2]}"s;
+        auto config_text = "foo : [12]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+
+    }
+}
+
+TEST_CASE("value limiting integers") {
+    SUBCASE("scalar setting (ok)") {
+        auto schema_text = "foo : { _t : int _range : [-5, 5]}"s;
+        auto config_text = "foo : 3"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("scalar setting (bad)") {
+        auto schema_text = "foo : { _t : int _range : [-5, 5]}"s;
+        auto config_text = "foo : 100"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+        config_text = "foo : -100"s;
+        CHECK_FALSE(cfg.parse(config_text)); 
+
+    }
 }

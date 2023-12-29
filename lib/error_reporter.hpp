@@ -19,7 +19,7 @@ namespace simpleConfig {
          * Error utilities
          ***********************************************************/
 
-        bool has_errors() { return error_count == 0; }
+        bool has_errors() { return error_count > 0; }
 
         void record_error(const std::string &msg, const parse_loc &l) {
             error_count += 1;

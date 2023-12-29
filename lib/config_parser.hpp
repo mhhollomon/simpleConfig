@@ -7,7 +7,6 @@
 #include "simpleConfig.hpp"
 
 #include <string_view>
-#include <charconv>
 #include <optional>
 #include <sstream>
 
@@ -27,101 +26,6 @@ namespace simpleConfig {
         {}
 
 
-
-        //##############   match_bool_value  #################
-
-        std::optional<bool> match_bool_value() {
-            // if there aren't enough chars then short circuit
-            if (!valid_pos(3)) {
-                return std::nullopt;
-            }
-
-            int pos = 0;
-            if (match_chars(pos, "Ff")) {
-                pos += 1;
-                if (! match_chars(pos, "Aa")) return std::nullopt;
-                pos += 1;
-                if (! match_chars(pos, "Ll")) return std::nullopt;
-                pos += 1;
-                if (! match_chars(pos, "Ss")) return std::nullopt;
-                pos += 1;
-                if (! match_chars(pos, "Ee")) return std::nullopt;
-                pos += 1;
-                // must be at end of word
-                if (!check_string_end(pos)) return std::nullopt;
-
-                consume(pos);
-                return false;
-
-            } else if (match_chars(pos, "Tt")) {
-                pos += 1;
-                if (! match_chars(pos, "Rr")) return std::nullopt;
-                pos += 1;
-                if (! match_chars(pos, "Uu")) return std::nullopt;
-                pos += 1;
-                if (! match_chars(pos, "Ee")) return std::nullopt;
-                pos += 1;
-                // must be at end of word
-                if (!check_string_end(pos)) return std::nullopt;
-
-                consume(pos);
-                return true;
-            }
-
-            return std::nullopt;
-
-        }
-
-        //##############   match_integer_value  #################
-        // handles both base 10 and hex
-        std::optional<long> match_integer_value() {
-            if (match_string("0x") or match_string("0X")) {
-                // integer in hex format - from_chars doesn't like the 0x prefix
-                // can't be anything else so commit.
-                long seen_num;
-                auto [ ptr, ec] = std::from_chars(current_loc.sv.data()+2,
-                        current_loc.sv.data()+current_loc.sv.size(), seen_num, 16);
-                if (ec == std::errc()) {
-                    int pos = ptr-current_loc.sv.data();
-                    if (valid_pos(pos) and std::isalnum(*ptr)) {
-                        // End of the number wasn't at a word boundary.
-                        record_error("Hex prefix, but invalid hex number followed");
-                        return std::nullopt;
-                    }
-                    consume(pos);
-                    return seen_num;
-                } else {
-                    record_error("Hex prefix, but invalid hex number followed");
-                    return std::nullopt;
-                }
-
-            } else if (match_chars(0, "+-0123456789")) {
-                // either a base-10 integer or float.
-
-                int copy_size = std::min(current_loc.sv.size(), size_t(100));
-                std::string subject(std::string(current_loc.sv.substr(0, copy_size)));
-
-                try {
-                    size_t pos = 0;
-                    long seen_num = std::stol(subject, &pos);
-
-                    if (valid_pos(pos) and (std::isalnum(peek(pos)) or match_char(pos, '.'))) {
-                        // must be at a word boundary.
-                        return std::nullopt;
-                    } else {
-                        consume(pos);
-                        return seen_num;
-                    }
-                } catch(std::exception &e) {
-                    return std::nullopt;
-                }
-
-                return std::nullopt;
-
-            }
-
-            return std::nullopt;
-        }
 
         //##############   match_double_value  #################
         
@@ -484,7 +388,7 @@ namespace simpleConfig {
                 return false;
             }
 
-            return has_errors();
+            return not has_errors();
         }
 
     };
