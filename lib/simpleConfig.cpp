@@ -33,22 +33,22 @@ namespace simpleConfig {
 
         cfg_.reset(new Setting(VT::GROUP));
 
-        std::cout << "Parsing : " << input << "\n";
+        //std::cout << "Parsing : " << input << "\n";
 
         if (parser_) delete parser_;
         parser_ = new Parser(input, cfg_.get(), errors);
 
         auto parse_ok = parser_->do_parse();
 
-        if (! parse_ok) {
-            std::cout << "--- CONFIG PARSE FAILED ---\n";
-            stream_errors(std::cout);
-        }
+        //if (! parse_ok) {
+            //std::cout << "--- CONFIG PARSE FAILED ---\n";
+            //stream_errors(std::cout);
+        //}
 
-        std::cout << "schema_tree = " << schema_tree_ << "\n";
+        //std::cout << "schema_tree = " << schema_tree_ << "\n";
 
         if (parse_ok && schema_tree_) {
-            std::cout << "-- Okay to validate\n";
+            //std::cout << "-- Okay to validate\n";
             return check_against_schema();
         }
 

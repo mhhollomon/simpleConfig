@@ -120,11 +120,11 @@ namespace simpleConfig {
                     if (output_) delete output_;
                 }
                 std::pair<std::string, Setting &> operator*() {
-                    if (not output_) throw std::runtime_error("invalid iterator");
+                    if (! output_) throw std::runtime_error("invalid iterator");
                     return *output_;
                 }
                 std::pair<std::string, Setting &>* operator->() {
-                    if (not output_) throw std::runtime_error("invalid iterator");
+                    if (! output_) throw std::runtime_error("invalid iterator");
                     return output_;
                 }
 
@@ -228,8 +228,8 @@ namespace simpleConfig {
         bool is_list()    const { return (type_ == ValType::LIST); }
         bool is_array()   const { return (type_ == ValType::ARRAY); }
 
-        bool is_numeric()   const { return (is_integer() || is_float()); }
-        bool is_composite() const { return (is_group() || is_list() || is_array()); }
+        bool is_numeric()   const { return (is_integer() or is_float()); }
+        bool is_composite() const { return (is_group() or is_list() or is_array()); }
         bool is_scalar()    const { return (is_scalar_type(type_)); }
 
         void make_list() {
@@ -354,7 +354,7 @@ namespace simpleConfig {
                 throw std::runtime_error("Only group children may have names");
             }
 
-            auto [ _, done ] = group_.try_emplace(name, group_.size());
+            auto [ _, done ] = group_.try_emplace(name, int(group_.size()));
 
             if (done) {
                 // It didn't exists before
@@ -371,7 +371,7 @@ namespace simpleConfig {
                 throw std::runtime_error("Only group children may have names");
             }
 
-            auto [ _, done ] = group_.try_emplace(name, group_.size());
+            auto [ _, done ] = group_.try_emplace(name, int(group_.size()));
 
             if (done) {
                 // It didn't exists before
@@ -457,7 +457,7 @@ namespace simpleConfig {
                 return nullptr;
             }
 
-            auto [ _, done ] = group_.try_emplace(name, group_.size());
+            auto [ _, done ] = group_.try_emplace(name, int(group_.size()));
 
             if (done) {
                 // It didn't exists before

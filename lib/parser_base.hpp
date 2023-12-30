@@ -4,11 +4,24 @@
 
 #include "error_reporter.hpp"
 
+#include <string>
 #include <string_view>
 #include <optional>
 #include <vector>
 #include <iostream>
 #include <charconv>
+
+#if NDEBUG
+
+#define ENTER
+
+#define RETURN(retval) { return retval; }
+
+#define RETURN_B(retval) { return retval; }
+
+#define RETURN_NULLOPT { return std::nullopt; }
+
+#else
 
 #define ENTER std::cout << "Entering function " << __FUNCTION__ \
         << " offset = " << current_loc.offset << "\n"
@@ -26,6 +39,7 @@
         << " returning nullopt\n"; \
         return std::nullopt; }
 
+#endif
 
 namespace simpleConfig {
     struct ParserBase : public ErrorReporter {
@@ -240,11 +254,45 @@ namespace simpleConfig {
             RETURN_NULLOPT
         }
 
+        //##############   match_double_value  #################
+        
+        std::optional<double>  match_double_value() {
+
+            skip();
+            ENTER;
+
+            if (match_chars(0, "+-0123456789")) {
+                // either a base-10 integer or float.
+
+                int copy_size = std::min(current_loc.sv.size(), size_t(100));
+                std::string subject(std::string(current_loc.sv.substr(0, copy_size)));
+
+                try {
+                    size_t pos = 0;
+                    double seen_num = std::stod(subject, &pos);
+                    if (valid_pos(pos) and std::isalnum(peek(pos))) {
+                        RETURN_NULLOPT;
+                    } else {
+                        consume(pos);
+                        RETURN(seen_num);
+                    }
+                } catch(std::exception &e) {
+                    RETURN_NULLOPT;
+                }
+
+                RETURN_NULLOPT;
+            }
+
+            RETURN_NULLOPT;
+        }
+
         //##############   match_bool_value  #################
 
         std::optional<bool> match_bool_value() {
+
             skip();
             ENTER;
+
             // if there aren't enough chars then short circuit
             if (!valid_pos(3)) {
                 RETURN_NULLOPT;

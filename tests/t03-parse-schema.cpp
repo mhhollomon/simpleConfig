@@ -230,7 +230,7 @@ TEST_CASE("simple extended") {
     }
 
     SUBCASE("array keys") {
-        auto text = "key : { _t : array, _ar : int }"s;
+        auto text = "key : { _t : array, _at : int }"s;
         auto parser = setup_schema_parser(text);
         INFO(std::cout << parser.errors);
 
@@ -260,7 +260,7 @@ TEST_CASE("array length") {
 
         auto kn = parser.schema->subkeys["key"];
 
-        CHECK(kn.length == int_range(3, 3));
+        CHECK(kn.length == Range<long>(3, 3));
 
     }
     
@@ -281,7 +281,7 @@ TEST_CASE("array length") {
 
         auto kn = parser.schema->subkeys["key"];
 
-        CHECK(kn.length == int_range(3, 5));
+        CHECK(kn.length == Range<long>(3, 5));
 
     }
 

@@ -69,6 +69,7 @@ namespace simpleConfig {
                 if (snode) {
                     if (setting.is_group()) {
                         validate(&setting, snode);
+
                     } else if (setting.is_array()) {
                         if (setting.array_type() != 
                             snode->array_type) {
@@ -84,25 +85,43 @@ namespace simpleConfig {
                             record_error("Number of array elements is out of range", {});
                         }
 
-                        if (snode->array_type == ValType::INTEGER && snode->range_limited) {
+                        if (snode->array_type == ValType::INTEGER && snode->int_range.limited) {
                             for (auto const &child : setting) {
                                 int v = child.get<int>();
-                                if (v > snode->range.max || v < snode->range.min ) {
-                                    record_error("Array element value is out of range" , {});
+                                if (v > snode->int_range.max || v < snode->int_range.min ) {
+                                    record_error("Array integer element value is out of range" , {});
+                                }
+                            }
+                        }   else if (snode->array_type == ValType::FLOAT && snode->float_range.limited) {
+                            for (auto const &child : setting) {
+                                int v = child.get<double>();
+                                if (v > snode->float_range.max || v < snode->float_range.min ) {
+                                    record_error("Array float element value is out of range" , {});
                                 }
                             }
                         }
 
+
                     } else if (setting.is_integer()) {
-                        std::cout << "  Checking key " << sett_name << " as range limited "<<
-                                snode->range << "\n";
-                        if (snode->range_limited) {
+                        if (snode->int_range.limited) {
+                            //std::cout << "  Checking key " << sett_name << " as range limited "<<
+                            //    snode->int_range << "\n";
                             int v = setting.get<int>();
-                            if (v > snode->range.max || v < snode->range.min ) {
-                                record_error( "scalar value is out of range" , {});
+                            if (v > snode->int_range.max || v < snode->int_range.min ) {
+                                record_error( "int value is out of range" , {});
                             }
                         }
-                    }          
+
+                    }  else if (setting.is_float()) {
+                        if (snode->float_range.limited) {
+                            //std::cout << "  Checking key " << sett_name << " as range limited "<<
+                            //    snode->float_range << "\n";
+                            int v = setting.get<double>();
+                            if (v > snode->float_range.max || v < snode->float_range.min ) {
+                                record_error( "float value is out of range" , {});
+                            }
+                        }
+                    }        
                 }
             }
 

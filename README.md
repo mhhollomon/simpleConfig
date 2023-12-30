@@ -1,143 +1,62 @@
 # simpleConfig
 Simple configuration Library with schema validation.
 
-Patterned after [libConfig](https://github.com/hyperrealm/libconfig)
+For some configuration files, validating the structure of the parsed settings 
+(required keys are present, no unknown keys are present, values have acceptable types.)
+can be as time consuming to write code as the parsing of the syntax.
 
-```
-    foo : 123
-    bar : "hello";
-    crash-and-burn = True,
-    subgroup = {
-        a : 3.124;
-        b : "some string" "in two parts"
-    }
-
-    a_key : [ 1, 2, 3 ];
-    a2_key [ "x", "y", "z" "extend" ]
-```
-
-The following are keywords in the validation schema and may not be used as
-keys in a configuration file.
-
-- str
-- int
-- bool
-- float
-- list
-- any
-
-key/value pairs are delimited by blanks, commas, or semi-colons.
-```
-#This is a valid configuration
-foo:123 bar:"hello"
-```
-
-```
-Three kinds of comments
-# Scripting style
-// C++ line comments
-/* C block comments */
-```
-
-## Validation Schema
+## Design Goals
+- Based on [libconfig](https://github.com/hyperrealm/libconfig)
+- C++17 based.
+- will allow the user to specify a schema for the target configuration.
+- will be setup to work nicely with FetchConfig.
+- throw as little as possible without making the interface horrible.
 
 
-Schemas have a different but related format.
+## Differences from libconfig
+- Only one integer type (long)
+- Only one float type (double)
+- Hex numbers are integers *only*
 
-Valid types are int, string, float, bool, any
+See [Config API](docs/API.md) for more details.
 
-The _any_ type allows composites (groups, lists, arrays)
+## Validation
 
-Note that - unlike the config file - only a colon is allowed between the
-key and type specifier.
+Allows the validation of data types, data ranges, array sizes, required keys, 
+and more.
 
-```
+See [Validation Schema](docs/VALIDATION_SCHEMA.md) docs for more information.
 
-# foo must be present and an integer.
-foo! : int
-# bar may be present but must be a string if present.
-bar : string
+## Sample Usage
 
-# other keys may be present, but must be integers
-* : int
+```C++
+// sample usage
+#include <simpleConfig.hpp>
+#include <string>
 
-# if the bang is used with '*', then at least one
-# key must be present that needs the star to
-# be allowed.
-baz : bool
-*! : any
+std::string schema = R"DELIM(
+// long schema ....
+)DELIM"s
 
-# This would not match (baz is explicitly allowed)
-baz : true
+simpleConfig::Config cfg;
 
-# This would match (foo is allowed by the '*', baz is not required)
-foo : 42
-
-# nested groups can also be validated.
-baz! : {
-    my_sub_key : int,
-    * : any
+if (!cfg.set_schema(schema)) {
+  std::cerr << "Bad Schema\n";
 }
 
-# Array may be specified.
-# Note that 'any' is still valid
-# inside array. What it means is that
-# the entries in the array may be any type
-# but they still must be all the same type.
-#
-# You cannot currently constrain the length of the array.
-array_key : [ int ]
+if (! cfg.parse(file_name)) {
+  std::cerr << "Yikes\n";
+}
 
-# Array may on have scalars (flot, int, bool) as elements.
-
-# List may be specified. There is no validation of entries
-# of the list
-
-list_key = ();
-
-```
-
-```bnf
-
-Spec = keyspec_list eoi
-
-keyspec_list = ( keyvalue sep? )+
-
-keyspec = name '!'? ':' constraint
-
-sep = /[;,]/
-
-name = /\* | [a-zA-z][a-zA-Z0-9_-]*/
-
-constraint = typename | '{' extended_spec '}'
-    | '[' typename ']' | '(' ')'
-
-typename = 'int' | 'float' | 'bool' | 'string' | 'any'
-
-extended_list = 
-    ex_typespec ex_required? 
-        ex_arrtype? ex_length? 
-        ex_range? keyspec_list? |
-    keyspec_list
-     
-
-ex_typespec = ( '_t' | '_type' ) ':' extended_typename sep?
-ex_required = ( '_r' | '_required' ) ':' bool_value sep?
-ex_arrtype  = ( '_at' | "_arrtype' ) ':' int_value sep?
-ex_length   = ( '_len' | '_length' ) ':' range_value sep?
-ex_range   =  '_range' ':' range_value sep?
-
-extended_typename = typename | 'group' | 'list' | 'array'
-range_value = '[' int_value sep? (int_value sep?)? ']' sep?
-
-bool_value = /[Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]/
-int_value = /[+-]?[0-9]+ | /0[xX][0-9]+/
+// Or
+if (! cfg.parse(my_istream)) {
+  std::cerr << "Yikes again!\n";
+}
 ```
 
 ## TODO
 - Add a way to set defaults in the schema
-- Add a way to range constrain ints and floats
-- Add a way to constrain length of arrays
+- Add a way to range constrain floats
 - Add a way to have an "enum" like contraint
 - Add parse locations to both settings and schema
   so that validation errors can reference them.

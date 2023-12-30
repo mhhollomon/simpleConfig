@@ -44,8 +44,8 @@ namespace simpleConfig {
             errors.emplace_back(mesg, l);
         }
 
-        void add(const std::string &mesg, const parse_loc &l, const std::string &src) {
-            errors.emplace_back(mesg, l, src);
+        void add(const std::string &mesg, const parse_loc &l, const std::string &source) {
+            errors.emplace_back(mesg, l, source);
         }
 
         friend std::ostream & operator<<(std::ostream &strm, const error_list & el){

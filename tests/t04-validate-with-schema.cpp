@@ -111,7 +111,7 @@ TEST_CASE("arrays schema") {
 TEST_CASE("arrays extended schema") {
 
     SUBCASE("simple (ok)") {
-        auto schema_text = "foo : { _t : array _ar : int}"s;
+        auto schema_text = "foo : { _t : array _at : int}"s;
         auto config_text = "foo : [1, 2, 3]"s;
 
         auto cfg = Config();
@@ -122,7 +122,7 @@ TEST_CASE("arrays extended schema") {
     }
 
     SUBCASE("simple (bad)") {
-        auto schema_text = "foo : { _t : array _ar : int}"s;
+        auto schema_text = "foo : { _t : array _at : int}"s;
         auto config_text = "foo : [true]"s;
 
         auto cfg = Config();
@@ -132,7 +132,7 @@ TEST_CASE("arrays extended schema") {
     }
 
     SUBCASE("length check (ok))") {
-        auto schema_text = "foo : { _t : array _ar : int, _len : [2]}"s;
+        auto schema_text = "foo : { _t : array _at : int, _len : [2]}"s;
         auto config_text = "foo : [1, 2]"s;
 
         auto cfg = Config();
@@ -143,7 +143,7 @@ TEST_CASE("arrays extended schema") {
     }
 
     SUBCASE("length check (bad))") {
-        auto schema_text = "foo : { _t : array _ar : int, _len : [2]}"s;
+        auto schema_text = "foo : { _t : array _at : int, _len : [2]}"s;
         auto config_text = "foo : [12]"s;
 
         auto cfg = Config();
@@ -180,7 +180,7 @@ TEST_CASE("value limiting integers") {
     }
 
     SUBCASE("array setting (ok)") {
-        auto schema_text = "foo : { _t : array _ar : int  _range : [-5, 5]}"s;
+        auto schema_text = "foo : { _t : array _at : int  _range : [-5, 5]}"s;
         auto config_text = "foo : [1 3 4 0 -5]"s;
 
         auto cfg = Config();
@@ -191,7 +191,7 @@ TEST_CASE("value limiting integers") {
     }
 
     SUBCASE("array setting (bad)") {
-        auto schema_text = "foo : { _t : array; _ar : int;  _range : [-5, 5]}"s;
+        auto schema_text = "foo : { _t : array; _at : int;  _range : [-5, 5]}"s;
         auto config_text = "foo : [1 3 4 0 100 ]"s;
 
         auto cfg = Config();
@@ -203,5 +203,55 @@ TEST_CASE("value limiting integers") {
 
     }
 
+}
+
+TEST_CASE("value limiting floats") {
+    SUBCASE("scalar setting (ok)") {
+        auto schema_text = "foo : { _t : float _range : [-5, 5.12]}"s;
+        auto config_text = "foo : 3.3"s;
+
+        auto cfg = Config();
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("scalar setting (bad)") {
+        auto schema_text = "foo : { _t : float _range : [-5, 5.1]}"s;
+        auto config_text = "foo : 100.0"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+        config_text = "foo : -100.0"s;
+        CHECK_FALSE(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("array setting (ok)") {
+        auto schema_text = "foo : { _t : array _at : float  _range : [-5.6, 5.0]}"s;
+        auto config_text = "foo : [1.0 3.0 4.0 0.0 -5.6]"s;
+
+        auto cfg = Config();
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text)); 
+
+    }
+
+    SUBCASE("array setting (bad)") {
+        auto schema_text = "foo : { _t : array; _at : float;  _range : [-5.6, 5.0]}"s;
+        auto config_text = "foo : [1.0 3.1415926 4.0 0.0 100.0 ]"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK_FALSE(cfg.parse(config_text)); 
+        config_text = "foo : [1.0 3.0 -100.0 0.0 2.0 ]"s;
+        CHECK_FALSE(cfg.parse(config_text)); 
+
+    }
 
 }

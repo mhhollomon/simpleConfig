@@ -24,37 +24,6 @@ namespace simpleConfig {
             ParserBase(_src, "Config"s, errlist),
             setting{s}
         {}
-
-
-
-        //##############   match_double_value  #################
-        
-        std::optional<double>  match_double_value() {
-
-            if (match_chars(0, "+-0123456789")) {
-                // either a base-10 integer or float.
-
-                int copy_size = std::min(current_loc.sv.size(), size_t(100));
-                std::string subject(std::string(current_loc.sv.substr(0, copy_size)));
-
-                try {
-                    size_t pos = 0;
-                    double seen_num = std::stod(subject, &pos);
-                    if (valid_pos(pos) and std::isalnum(peek(pos))) {
-                        return std::nullopt;
-                    } else {
-                        consume(pos);
-                        return seen_num;
-                    }
-                } catch(std::exception &e) {
-                    return std::nullopt;
-                }
-
-                return std::nullopt;
-            }
-
-            return std::nullopt;
-        }
         
         //##############   match_string_value  ###############
         // Supports parsing strings "next" to each other as a single

@@ -47,11 +47,11 @@ namespace simpleConfig {
             schema{_schema}
         { }
 
-        //############## parse_range #########################
-        std::optional<int_range> parse_range(bool length_mode) {
+        //############## parse_int_range #########################
+        std::optional<Range<long>> parse_int_range(bool length_mode) {
             skip();
             ENTER;
-            int_range retval{};
+            Range<long> retval{};
 
             if ( ! expect_char('['))
                 RETURN_NULLOPT;
@@ -64,6 +64,7 @@ namespace simpleConfig {
 
             retval.min = *min;
             retval.max = *min;
+            retval.limited = true;
 
             optional_sep();
 
@@ -102,6 +103,51 @@ namespace simpleConfig {
             RETURN(retval);            
         }
 
+        //############## parse_float_range #########################
+        std::optional<Range<double>> parse_float_range() {
+            skip();
+            ENTER;
+            Range<double> retval{};
+
+            if ( ! expect_char('['))
+                RETURN_NULLOPT;
+
+            auto min = match_double_value();
+            if (!min) {
+                record_error("Invalid range entry.");
+                RETURN_NULLOPT
+            }
+
+            retval.min = *min;
+            retval.max = *min;
+            retval.limited = true;
+
+            optional_sep();
+
+            auto max = match_double_value();
+            if (max) {
+                skip();
+                optional_sep();
+                retval.max = *max;
+                skip();
+            } else  {
+                record_error("Missing max value");
+                RETURN_NULLOPT;
+            }
+
+            if (!expect_char(']')) {
+                record_error("Missing ']' closing the range spec.");
+                RETURN_NULLOPT;
+            }
+
+            if (retval.min > retval.max) {
+                record_error("Min must be less than or equal to Max in range");
+                RETURN_NULLOPT
+            }
+
+
+            RETURN(retval);            
+        }
         //##############  parse_typename #######################
 
         bool parse_typename(SchemaNode * keyspec, bool extended = false) {
@@ -113,13 +159,13 @@ namespace simpleConfig {
 
             for (auto const &iter : type_map ){
                 if (not extended and not iter.second.normal) {
-                    std::cout << "Skipping type name '"s + iter.first + "'\n";
+                    // std::cout << "Skipping type name '"s + iter.first + "'\n";
                     continue;
                 }
-                std::cout << "Trying type name '"s + iter.first + "'\n";
+                //std::cout << "Trying type name '"s + iter.first + "'\n";
 
                 if (match_string(iter.first)) {
-                    std::cout << "--- Found '" + iter.first +"'\n";
+                    //std::cout << "--- Found '" + iter.first +"'\n";
                     vtype = iter.second.vtype;
                     break;
                 }
@@ -322,7 +368,7 @@ namespace simpleConfig {
 
 
             // check the longer alt first.
-            if (match_keyword({"_arrtype", "_ar"})) {
+            if (match_keyword({"_arrtype", "_at"})) {
 
                 skip();
 
@@ -366,7 +412,7 @@ namespace simpleConfig {
                     RETURN(false);
                 }
 
-                auto range = parse_range(true);
+                auto range = parse_int_range(true);
 
                 if (!range) {
                     RETURN(false);
@@ -389,13 +435,9 @@ namespace simpleConfig {
         }
 
         //############## parse_ex_range #######################
-        bool parse_ex_range(SchemaNode *parent){
+        bool parse_ex_range(SchemaNode *parent, ValType vtype){
             skip();
             ENTER;
-
-            // This really shouldn't be necessary.
-            parent->range_limited = false;
-
 
             if (match_keyword({"_range"})) {
 
@@ -406,22 +448,35 @@ namespace simpleConfig {
                     RETURN(false);
                 }
 
-                auto range = parse_range(false);
+                bool type_ok = false;
 
-                if (!range) {
-                    RETURN(false);
+                if (vtype == VT::INTEGER) {
+
+                    auto range = parse_int_range(false);
+
+                    if (!range) {
+                        RETURN(false);
+                    }
+                    parent->int_range = *range;
+                    type_ok = true;
+
+                } else if (vtype == VT::FLOAT) {
+                    auto range = parse_float_range();
+
+                    if (!range) {
+                        RETURN(false);
+                    }
+                    parent->float_range = *range;
+                    type_ok = true;
                 }
 
                 optional_sep();
 
-                if (parent->vtype != VT::INTEGER and 
-                        parent->array_type != VT::INTEGER) {
-                    record_error("_range tag is only valid if type is int");
+                if (not type_ok) {
+                    record_error("_range tag is only valid if type is int or float");
                     RETURN(false);
                 }
 
-                parent->range = *range;
-                parent->range_limited = true;
                 
                 RETURN(true);
             }
@@ -442,7 +497,7 @@ namespace simpleConfig {
                 parse_ex_required(parent);
                 parse_ex_arrtype(parent);
                 parse_ex_length(parent);
-                parse_ex_range(parent);
+                parse_ex_range(parent, (parent->vtype == VT::ARRAY ? parent->array_type : parent->vtype));
             }
 
             if (parent->vtype == VT::GROUP) {
@@ -485,7 +540,7 @@ namespace simpleConfig {
 
             error_count = 0;
 
-            std::cout << "Parsing : " << src_text << "\n";
+            //std::cout << "Parsing : " << src_text << "\n";
 
             skip();
 

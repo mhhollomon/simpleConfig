@@ -37,9 +37,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if (MSVC)
-    add_compile_options("$<$<CONFIG:DEBUG>:/Wall>")
+    #add_compile_options("$<$<CONFIG:DEBUG>:/Wall>")
     add_compile_options("$<$<CONFIG:CI>:/Wall>")
     add_compile_options("$<$<CONFIG:RELEASE>:/O2>")
+    # This allows us to use 'or', 'and', 'not' keywords.
+    add_compile_options("/permissive-")
 else()
     add_compile_options("$<$<CONFIG:DEBUG>:-O0;-Wall;-pedantic>")
     add_compile_options("$<$<CONFIG:CI>:-O1;-Wall;-pedantic>")
