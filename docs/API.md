@@ -137,7 +137,7 @@ names. Also throws for scalars.
 **NOTE** The reference may become invalid if more children are added to the
 composite. Don't hold on to it for long.
 
-- `template\<typename T\> Setting& add_child(T value)`
+- `template<typename T> Setting& add_child(T value)`
 
 Attempts to deduce the correct scalar type for T and create a child of that
 type initialized to the value. This throws an exception for groups since

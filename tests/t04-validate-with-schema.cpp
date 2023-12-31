@@ -255,3 +255,20 @@ TEST_CASE("value limiting floats") {
     }
 
 }
+
+TEST_CASE("Defaults") {
+    SUBCASE("simple int with default (ok)") {
+        auto schema_text = "a : int b : { _t : int _d : 3}"s;
+        auto config_text = "a = 42;"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        CHECK(cfg.parse(config_text));
+
+        auto &b = cfg.get_settings().at("b");
+
+        CHECK(b.get<int>() == 3);
+
+    }
+}

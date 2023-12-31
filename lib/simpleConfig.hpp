@@ -71,4 +71,4 @@ namespace simpleConfig {
     };
 
 
-} // end namespace Configinator5000
+} // end namespace simpleConfig

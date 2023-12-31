@@ -31,10 +31,11 @@ namespace simpleConfig {
         std::vector<Setting> children_;
 
         // lookup for groups. Allows at(std::string) to be O(1)
+        // The int is an index into children_
         std::map<std::string, int> group_;
 
         // Arrays must all be the same type. Set when the first child is added to the array.
-        ValType array_type_ = ValType::BOOL;
+        ValType array_type_ = ValType::NONE;
 
         void clear_subobjects() {
             children_.clear();
@@ -529,11 +530,11 @@ namespace simpleConfig {
 
         //used by the parser. Probably will go away
         Setting * create_child(const std::string &name) {
-            return try_add_child(name, ValType::BOOL);
+            return try_add_child(name, ValType::NONE);
         }
 
         Setting *create_child() {
-            return try_add_child(ValType::BOOL);
+            return try_add_child(ValType::NONE);
         }
 
 

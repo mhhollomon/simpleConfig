@@ -18,9 +18,63 @@ namespace simpleConfig {
         {}
     
         bool validate(
-                Setting * setting_ptr, 
+                Setting *setting_ptr, 
                 const SchemaNode* schema_ptr ) {
 
+            if (setting_ptr->is_group()) {
+                return validate_group(setting_ptr, schema_ptr);
+            } else if (setting_ptr->is_scalar()) {
+                return validate_scalar(setting_ptr, schema_ptr);
+            } else {
+                return true;
+            }
+        }
+
+        bool validate_scalar(
+                Setting *setting_ptr, 
+                const SchemaNode* schema_ptr ) {
+
+            if (schema_ptr->vtype == ValType::ANY) {
+                // No further real validations are available.
+                return true;
+            }
+
+            if (setting_ptr->get_type() != schema_ptr->vtype) {
+                record_error("setting and schema value type don't match", {});
+                return false;
+            }
+            
+            if (setting_ptr->is_integer()) {
+                if (schema_ptr->int_range.limited) {
+                    //std::cout << "  Checking key " << sett_name << " as range limited "<<
+                    //    snode->int_range << "\n";
+                    int v = setting_ptr->get<int>();
+                    if (v > schema_ptr->int_range.max || v < schema_ptr->int_range.min ) {
+                        record_error( "int value is out of range" , {});
+                        return false;
+                    }
+                }
+
+            }  else if (setting_ptr->is_float()) {
+                if (schema_ptr->float_range.limited) {
+                    //std::cout << "  Checking key " << sett_name << " as range limited "<<
+                    //    snode->float_range << "\n";
+                    int v = setting_ptr->get<double>();
+                    if (v > schema_ptr->float_range.max || v < schema_ptr->float_range.min ) {
+                        record_error( "float value is out of range" , {});
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        bool validate_group(
+                Setting * setting_ptr, 
+                const SchemaNode* schema_ptr ) {
+        
+            // Keep track of the keys we've dealt with
             std::set<std::string> seen;
 
             auto star = schema_ptr->subkeys.find("*");
@@ -58,8 +112,9 @@ namespace simpleConfig {
                     ftype = snode->vtype;
                 }
 
-                if (! key_name_ok)
+                if (! key_name_ok) {
                     record_error("Key = "s + sett_name + " is not allowed.", {});
+                }
                 
                 if (ftype != ValType::ANY && setting.get_type() != ftype )
                     record_error("Key = "s + sett_name + " has wrong type.", {});
@@ -102,25 +157,8 @@ namespace simpleConfig {
                         }
 
 
-                    } else if (setting.is_integer()) {
-                        if (snode->int_range.limited) {
-                            //std::cout << "  Checking key " << sett_name << " as range limited "<<
-                            //    snode->int_range << "\n";
-                            int v = setting.get<int>();
-                            if (v > snode->int_range.max || v < snode->int_range.min ) {
-                                record_error( "int value is out of range" , {});
-                            }
-                        }
-
-                    }  else if (setting.is_float()) {
-                        if (snode->float_range.limited) {
-                            //std::cout << "  Checking key " << sett_name << " as range limited "<<
-                            //    snode->float_range << "\n";
-                            int v = setting.get<double>();
-                            if (v > snode->float_range.max || v < snode->float_range.min ) {
-                                record_error( "float value is out of range" , {});
-                            }
-                        }
+                    } else if (setting.is_scalar()) {
+                        validate_scalar(&setting, snode);
                     }        
                 }
             }
@@ -134,15 +172,16 @@ namespace simpleConfig {
             // Run through the schema checking that required keys
             // were seen.
 
-            for (const auto &c : schema_ptr->subkeys) {
-
-                if ( ! c.second.required)
-                    continue;
-                
-                const auto &seen_iter = seen.find(c.first);
+            for (const auto &[name, snode] : schema_ptr->subkeys) {
+                const auto &seen_iter = seen.find(name);
                 if (seen_iter == seen.end()) {
-                    record_error("Required key = "s + c.first + 
-                        " is not present.", {});
+                    if (snode.required) {
+                        record_error("Required key = "s + name + 
+                            " is not present.", {});
+
+                    } else if (snode.dflt) {
+                        setting_ptr->add_child(name, *snode.dflt);
+                    }
                 }
             }
 
@@ -151,5 +190,5 @@ namespace simpleConfig {
         }
 
 
-        };
+    };
 }

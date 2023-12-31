@@ -5,6 +5,7 @@
 #include "value_type.hpp"
 
 #include "schema_node.hpp"
+#include "validator.hpp"
 
 #include <string>
 #include <string_view>
@@ -445,7 +446,7 @@ namespace simpleConfig {
 
                 if (! expect_char(':')) {
                     record_error("Expecting ':' between key and value");
-                    RETURN(false);
+                    RETURN_B(false);
                 }
 
                 bool type_ok = false;
@@ -474,14 +475,52 @@ namespace simpleConfig {
 
                 if (not type_ok) {
                     record_error("_range tag is only valid if type is int or float");
-                    RETURN(false);
+                    RETURN_B(false);
                 }
 
                 
-                RETURN(true);
+                RETURN_B(true);
             }
 
-            RETURN(false);
+            RETURN_B(false);
+
+        }
+        //##############   parse_ex_default #####################
+        bool parse_ex_default(SchemaNode * parent) {
+            skip();
+            ENTER;
+
+            if (match_keyword({"_default", "_d"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN_B(false);
+                }
+
+                auto *setting = new Setting();
+                if (! match_scalar_value(setting)) {
+                    record_error("Invalid or missing value for default");
+                    delete setting;
+                    RETURN_B(false);
+                }
+
+                optional_sep();
+
+                if (not parent->is_scalar()) {
+                    record_error("Only scalar values allowed as defaults.");
+                    delete setting;
+                    RETURN_B(false);
+                }
+
+                parent->dflt.reset(setting);
+
+                RETURN_B(true);
+
+            }
+
+            RETURN_B(false);
 
         }
 
@@ -497,7 +536,10 @@ namespace simpleConfig {
                 parse_ex_required(parent);
                 parse_ex_arrtype(parent);
                 parse_ex_length(parent);
-                parse_ex_range(parent, (parent->vtype == VT::ARRAY ? parent->array_type : parent->vtype));
+                auto p_vtype = parent->vtype == 
+                        VT::ARRAY ? parent->array_type : parent->vtype;
+                parse_ex_range(parent, p_vtype);
+                parse_ex_default(parent);
             }
 
             if (parent->vtype == VT::GROUP) {
@@ -510,7 +552,19 @@ namespace simpleConfig {
             } else {
                 at_least_one = true;
             }
-            RETURN(at_least_one);
+
+            if (parent->dflt) {
+                if (parent->required) {
+                    record_error("required keys cannot have defaults");
+                    RETURN_B(false);
+                }
+                Validator v{errors};
+                if (!v.validate(parent->dflt.get(), parent)) {
+                    record_error("Default value does not match schema.");
+                    RETURN_B(false);
+                }
+            }
+            RETURN_B(at_least_one);
         }
 
         //##############   parse_keyspec_list #####################
@@ -529,7 +583,7 @@ namespace simpleConfig {
                 skip();
             }
 
-            RETURN(at_least_one);
+            RETURN_B(at_least_one);
         }
 
 
@@ -546,7 +600,7 @@ namespace simpleConfig {
 
             if (! parse_keyspec_list(schema)) {
                 record_error("No keys seen");
-                RETURN(false);
+                RETURN_B(false);
             }
 
             if (! eoi()) {
@@ -554,12 +608,11 @@ namespace simpleConfig {
 
                 ss << "Not at end of input! Next char = '" <<  (int)peek(0)  << "'\n";
                 record_error(ss.str());
-                RETURN(false);
+                RETURN_B(false);
             }
 
-            RETURN(not has_errors());
+            RETURN_B(not has_errors());
         }
-
 
     };
 }

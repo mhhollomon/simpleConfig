@@ -4,9 +4,9 @@ cmake_minimum_required(VERSION 3.16)
 
 
 if (NOT DEFINED PROJECT_NAME)
-    set(C5K_IS_SUBPROJECT OFF)
+    set(SC_IS_SUBPROJECT OFF)
 else()
-    set(C5K_IS_SUBPROJECT ON)
+    set(SC_IS_SUBPROJECT ON)
 endif()
 
 project(simpleConfig VERSION 0.1.0
@@ -60,7 +60,7 @@ add_subdirectory(extern)
 #
 # build tests
 #
-if (BUILD_TEST AND NOT C5K_IS_SUBPROJECT)
+if (BUILD_TEST AND NOT SC_IS_SUBPROJECT)
     enable_testing()
     add_subdirectory(tests)
 endif()

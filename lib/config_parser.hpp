@@ -3,8 +3,7 @@
 #include "parser_base.hpp"
 
 #include "value_type.hpp"
-
-#include "simpleConfig.hpp"
+#include "setting.hpp"
 
 #include <string_view>
 #include <optional>
@@ -25,124 +24,6 @@ namespace simpleConfig {
             setting{s}
         {}
         
-        //##############   match_string_value  ###############
-        // Supports parsing strings "next" to each other as a single
-        // string
-        std::optional<std::string> match_string_value() {
-            if (!match_char('"')) return std::nullopt;
-
-            // consume the opening quotes
-            consume(1);
-            std::stringstream buf{};
-
-            bool stop = false;
-            while(not stop and not eoi()) {
-                char c = peek();
-                switch (c) {
-                    case '\0' :
-                        //must be eoi;
-                        stop = true;
-                        break;
-                    case '\\' :
-                        if (match_chars(1, "\\fnrtx\"")) {
-                            switch(peek(1)) {
-                            case 'f' :
-                                buf << '\f';
-                                consume(2);
-                                break;
-                            case 'n' :
-                                buf << '\n';
-                                consume(2);
-                                break;
-                            case '"' :
-                                buf << '"';
-                                consume(2);
-                                break;
-                            case 'r' :
-                                buf << '\r';
-                                consume(2);
-                                break;
-                            case '\\' :
-                                buf << '\\';
-                                consume(2);
-                                break;
-                            case 't' :
-                                buf << '\t';
-                                consume(2);
-                                break;
-                            case 'x' :
-                                if (match_chars(2, "0123456789abcdefABCDEF") and
-                                        match_chars(3, "0123456789abcdefABCDEF")) {
-                                    char x = (peek(2) - '0') * 16 + (peek(3) - '0');
-                                    buf << x;
-                                    consume(4);
-                                } else {
-                                    record_error("Bad hex escape in string");
-                                    consume(2); // just to keep us going
-                                }
-                                break;
-                            }
-                        } else {
-                            record_error("Unrecognized escape sequence in string");
-                            consume(1);
-                        }
-                    case '\n' :
-                        record_error("Unterminated string");
-                        return std::nullopt;
-                        break;
-                    case '"' :
-                        stop = true;
-                        consume(1);
-                        break;
-                    default:
-                        buf << c;
-                        // this will be slow - rethink.
-                        consume(1);
-                        break;
-                    }
-                if (stop) {
-                    skip();
-                    if (match_char('"')) {
-                        stop = false;
-                        consume(1);
-                    }
-                }
-            }
-
-            return buf.str();
-
-        }
-        //##############   match_scalar_value  ###############
-
-        bool match_scalar_value(Setting *parent) {
-
-            auto bv = match_bool_value();
-            if (bv) {
-                parent->set_value(*bv);
-                return true;
-            }
-            
-            auto lv = match_integer_value();
-            if (lv) {
-                parent->set_value(*lv);
-                return true;
-            }
-
-            auto dv = match_double_value();
-            if (dv) {
-                parent->set_value(*dv);
-                return true;
-            }
-
-            auto sv = match_string_value();
-            if (sv) {
-                parent->set_value(*sv);
-                return true;
-            }
-
-
-            return false;
-        }
 
 
         //##############   parse_list     ##############

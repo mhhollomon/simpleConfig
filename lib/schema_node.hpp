@@ -2,9 +2,11 @@
 
 #include "value_type.hpp"
 #include "range.hpp"
+#include "setting.hpp"
 
 #include <map>
 #include <string>
+#include <memory>
 
 
 namespace simpleConfig {
@@ -24,7 +26,7 @@ namespace simpleConfig {
         Range<long> length{};
         Range<long> int_range{};
         Range<double> float_range{};
-
+        std::unique_ptr<Setting> dflt;
 
         std::map<std::string, SchemaNode> subkeys;
 
@@ -39,12 +41,12 @@ namespace simpleConfig {
 
         }
 
-        bool contains_underbar_keys() {
-            for (auto const &iter : subkeys) {
-                if (iter.first.front() == '_')
-                    return true;
-            }
-            return false;
+        bool is_scalar() const {
+            return (
+                vtype == ValType::INTEGER or
+                vtype == ValType::BOOL or
+                vtype == ValType::STRING or
+                vtype == ValType::FLOAT);
         }
 
         bool contains_key(std::string k) {
@@ -52,10 +54,6 @@ namespace simpleConfig {
              return (iter1 != subkeys.end());   
         }
 
-        bool is_extended() {
-            return contains_key("_t") or 
-                    contains_key("_type");
-        }
 
     };
 

@@ -55,8 +55,9 @@ if (! cfg.parse(my_istream)) {
 ```
 
 ## TODO
-- Add a way to set defaults in the schema
-- Add a way to range constrain floats
-- Add a way to have an "enum" like contraint
+- Add a way to set defaults for arrays in the schema.
+- Add an "at_path" to find settings deep in the heirarchy.
+- Add a way to have an "enum" like contraint.
 - Add parse locations to both settings and schema
   so that validation errors can reference them.
+- Add code coverage metrics.

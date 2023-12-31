@@ -80,7 +80,7 @@ key2 : {
     y = { _t : int, _r : true }
 }
 
-key3 {
+key3 : {
     #parse error : '_' keys are not valid except if _type is seen.
     _required : true,
     spats : int
@@ -104,6 +104,14 @@ flt_key : { _t : array, _at : float _len : [3 , 5], _range : [-100.0, 30.666]}
 # A single number in the length means the array must be exactly that long.
 key : { _t : array, _at : float; _len : [2] }
 
+# defaults can be specified for scalar types
+# if the key is not present in the config, it will be inserted.
+key-with-default : { _t : string, _d : "default Value" }
+
+# defaults are checked against the schema for type and range
+key-with-bad-default  : { _t : int _range [3, 100], _d : -100 /* ERROR! */}
+key2-with-bad-default : { _t : int _range [3, 100], _d : 32.0 /* ERROR! */}
+
 
 ```
 ## Current limitations
@@ -111,7 +119,7 @@ key : { _t : array, _at : float; _len : [2] }
 
 ## EBNF
 
-Main point is tha the `ex_*` tags must show up in a specific order
+Main point is that the `ex_*` tags must show up in a specific order
 (though any irrelevant ones can be missing. )
 
 
@@ -140,7 +148,7 @@ typename = 'int' | 'float' | 'bool' | 'string' | 'any'
 extended_list = 
     ex_typespec ex_required? 
         ex_arrtype? ex_length? 
-        ex_range? keyspec_list? |
+        ex_range? ex_default? keyspec_list? |
     keyspec_list
      
 
@@ -149,10 +157,12 @@ ex_required = ( '_r' | '_required' ) ':' bool_value sep?
 ex_arrtype  = ( '_at' | "_arrtype' ) ':' int_value sep?
 ex_length   = ( '_len' | '_length' ) ':' range_value sep?
 ex_range   =  '_range' ':' range_value sep?
+ex_default  = ( '_d' | '_default' ) ':' setting sep?
 
 extended_typename = typename | 'group' | 'list' | 'array'
 range_value = '[' int_value sep? (int_value sep?)? ']' sep?
 
+setting = bool_value | int_value | float_value | string_value
 bool_value = /[Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]/
 int_value = /[+-]?[0-9]+ | /0[xX][0-9]+/
 ```
