@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include <exception>
+#include <ctype.h>
 
 using namespace std::literals::string_literals;
 
@@ -264,7 +265,7 @@ namespace simpleConfig {
                 return true;
         }
 
-        template<class T> T get() const {
+        template<typename T> T get() const {
             if constexpr (std::is_same_v<T, bool>) {
                 if (is_boolean()) {
                     return T(bool_);
@@ -519,6 +520,29 @@ namespace simpleConfig {
             return children_.at(iter->second);
         }
 
+        Setting &at_path(const std::vector<std::string> &path) {
+            Setting *current = this;
+
+            for (auto const &e : path) {
+                auto first_char = e.front();
+
+                if (std::isdigit(first_char) or first_char == '-' or first_char == '+' ) {
+                    const char * start = e.c_str();
+                    char * end;
+                    int number = std::strtol(start, &end, 10);
+                    if (end == nullptr or (end - start) < int(e.size())) {
+                        throw std::runtime_error("at_path element is an invalid decimal integer");
+                    }
+                    current = &current->at(number);
+
+                } else {
+                    current = &current->at(e);
+                }
+            }
+
+            return *current;
+        }
+
 
         auto begin() {
             return children_.begin();
@@ -529,7 +553,7 @@ namespace simpleConfig {
         }
 
         //used by the parser. Probably will go away
-        Setting * create_child(const std::string &name) {
+        Setting *create_child(const std::string &name) {
             return try_add_child(name, ValType::NONE);
         }
 

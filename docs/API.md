@@ -173,6 +173,25 @@ Returns true otherwise.
 Returns a reference to the child added with name `name`. Throws if such a child
 does not exist or the Setting is not a group.
 
+
+#### Setting& at_path(std::vector\<std::string> v)
+
+Returns a reference to the Setting object found at given path.
+Throws if such a setting does not exist.
+
+This can be thought of as a wrapper around a loop.
+
+```C++
+auto &s = setting.at_path({"a", "b", "c" })
+
+# equivalent to :
+auto &s = setting.at("a").at("b").at("c");
+
+# decimal integer strings can be used to index into arrays
+
+auto &s = setting.at_path({"a", "-1", "c" })
+```
+
 - `iterator& begin()`
 - `iterator& end()`
 

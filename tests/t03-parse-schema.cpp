@@ -330,7 +330,7 @@ TEST_CASE("Defaults") {
 
     }
 
-    SUBCASE("defulat on array (bad)") {
+    SUBCASE("default on array (bad)") {
         auto text = "key : { _t : array, _at : int, _d : -100 }"s;
         auto &parser = setup_schema_parser(text);
         INFO(std::cout << parser.errors);

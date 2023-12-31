@@ -58,6 +58,10 @@ namespace simpleConfig {
             return *cfg_;
         }
 
+        Setting& at_path(const std::vector<std::string> &v) {
+            return get_settings().at_path(v);
+        }
+
         const error_list &get_errors() const { return errors; }
 
         std::ostream &stream_errors(std::ostream& strm);

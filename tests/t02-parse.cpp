@@ -242,3 +242,30 @@ TEST_CASE("errors") {
 
     CHECK(buf.str() == "line 0 : Config: Expecting a value\nline 0 : Config: Not at end of input!\n"s);
 }
+
+
+TEST_CASE("at_path") {
+    //These really should be in t01, but it is easier to let the parser
+    // build the nested structure.
+    SUBCASE("string") {
+            simpleConfig::Config cfg;
+
+            std::string input = R"DELIM( a : { b = 3 }, c = "hello" )DELIM"s;
+
+            CHECK(cfg.parse(input));
+
+            CHECK(cfg.get_settings().at_path({"a","b"}).get<int>() == 3);
+
+    }
+    SUBCASE("array index") {
+            simpleConfig::Config cfg;
+
+            std::string input = R"DELIM( a : { b = [1 ,2 ,5] }, c = "hello" )DELIM"s;
+
+            CHECK(cfg.parse(input));
+
+            CHECK(cfg.get_settings().at_path({"a","b","2"}).get<int>() == 5);
+
+    }
+}
+
