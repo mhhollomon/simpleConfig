@@ -173,6 +173,9 @@ namespace simpleConfig {
             // were seen.
 
             for (const auto &[name, snode] : schema_ptr->subkeys) {
+                if (name == "*") {
+                    continue;
+                }
                 const auto &seen_iter = seen.find(name);
                 if (seen_iter == seen.end()) {
                     if (snode.required) {

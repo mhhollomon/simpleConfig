@@ -272,3 +272,39 @@ TEST_CASE("Defaults") {
 
     }
 }
+
+TEST_CASE("faults seen") {
+    SUBCASE("* key") {
+        const std::string  schema_text = R"DELIM(
+server! : {
+	interface : { _t : string, _d : "127.0.0.1"; },
+	port : { _t : int, _d : 8888 };
+}
+
+launch! : {
+	*! : string
+}
+)DELIM";
+
+    const std::string config_text = R"DELIM(
+server: {
+        port = 7777;
+}
+
+launch : {
+
+        gwenview = "/usr/bin/gwenview"
+}
+
+)DELIM";
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+
+        INFO(cfg.stream_errors(std::cout));
+        CHECK(cfg.parse(config_text));
+
+
+    }
+}

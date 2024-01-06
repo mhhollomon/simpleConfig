@@ -254,7 +254,9 @@ TEST_CASE("at_path") {
 
             CHECK(cfg.parse(input));
 
-            CHECK(cfg.get_settings().at_path({"a","b"}).get<int>() == 3);
+            std::vector x = {"a"s,"b"s};
+
+            CHECK(cfg.get_settings().at_path(x).get<int>() == 3);
 
     }
     SUBCASE("array index") {
@@ -264,7 +266,9 @@ TEST_CASE("at_path") {
 
             CHECK(cfg.parse(input));
 
-            CHECK(cfg.get_settings().at_path({"a","b","2"}).get<int>() == 5);
+            CHECK(cfg.at_path({"a","b","2"}).get<int>() == 5);
+
+            CHECK(cfg.at_path("a.b.[2]"s).get<int>() == 5);
 
     }
 }

@@ -57,10 +57,15 @@ namespace simpleConfig {
         Setting& get_settings() const {
             return *cfg_;
         }
+        Setting& at_path(const std::string &v) {
+            return get_settings().at_path(v);
+        }
 
         Setting& at_path(const std::vector<std::string> &v) {
             return get_settings().at_path(v);
         }
+
+        bool has_errors() const {return (errors.count() > 0); }
 
         const error_list &get_errors() const { return errors; }
 
