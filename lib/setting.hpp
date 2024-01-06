@@ -7,6 +7,8 @@
 #include <map>
 #include <exception>
 #include <ctype.h>
+#include <sstream>
+#include <iostream>
 
 using namespace std::literals::string_literals;
 
@@ -506,6 +508,27 @@ namespace simpleConfig {
             return children_.at(idx);
         }
 
+        Setting *lookup(int idx) {
+            if (! is_composite()) {
+                return nullptr;
+            }
+
+            // negative indecies count from the end
+            //   0    1   2
+            //   -    -   -
+            //  -3   -2  -1
+            if (idx >= int(children_.size()) or idx < -int(children_.size())) {
+                return nullptr;
+            }
+
+            if (idx < 0) {
+                idx += int(children_.size());
+            }
+
+            return &(children_.at(idx));
+        }
+
+
         Setting &at(const std::string& name) {
             if (!is_group()) {
                 throw std::runtime_error("at(string) called on a non-group");
@@ -520,8 +543,63 @@ namespace simpleConfig {
             return children_.at(iter->second);
         }
 
+        Setting *lookup(const std::string& name) {
+            if (!is_group()) {
+                return nullptr;
+            }
+
+            auto iter = group_.find(name);
+            if (iter == group_.end()) {
+                return nullptr;
+            }
+
+            return &(children_.at(iter->second));
+        }
+
+
+        Setting &at_path(const std::string &str_path) {
+            // probably better ways to do this, but whatever.
+            std::vector<std::string> path;
+            size_t offset = 0;
+            size_t plen = 0;
+            bool at_end = false;
+            while(not at_end) {
+                auto point_index = str_path.find('.', offset);
+                if (point_index == std::string::npos) {
+                    point_index = str_path.size();
+                    at_end = true;
+                }
+
+                if (str_path[offset] == '[') {
+                    offset += 1;
+                    plen = point_index-1-offset;
+                    if (str_path[point_index-1] != ']') {
+                        std::stringstream ss;
+                        ss << "at_path(string) : numeric index starting at "
+                            << (offset-1) 
+                            << " does not have a closing bracket";
+                        throw std::runtime_error(ss.str());
+
+                    }
+                } else {
+                    plen = point_index-offset;
+                }
+                path.emplace_back(str_path, offset, plen);
+
+                offset = point_index+1;
+            }
+
+            return at_path(path);
+
+        }
+
         Setting &at_path(const std::vector<std::string> &path) {
             Setting *current = this;
+
+            std::cout << "At_path(vector) called with:\n";
+            for (auto const &s : path) {
+                std::cout << "  " << s << "\n";
+            }
 
             for (auto const &e : path) {
                 auto first_char = e.front();
