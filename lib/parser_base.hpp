@@ -142,19 +142,23 @@ namespace simpleConfig {
         // Otherwise, it must start with a letter
         // and only consist of letters, numbers and underbars.
         std::optional<std::string> match_name(bool schema_mode = false) {
+            skip();
+            ENTER;
+
+            if (eoi()) RETURN_NULLOPT;
 
             int pos = 0;
             if (schema_mode && peek(pos) == '*') {
                 if (!check_string_end(1))
-                    return std::nullopt;
+                    RETURN_NULLOPT;
                 consume(1);
                 
-                return std::string("*");
+                RETURN(std::string("*"));
 
             } else if (std::isalpha(peek(pos))) {
                 pos += 1;
             } else {
-                return std::nullopt;
+                RETURN_NULLOPT;
             }
 
             while (valid_pos(pos)) {
@@ -168,7 +172,7 @@ namespace simpleConfig {
             auto retval = current_loc.sv.substr(0, pos);
             consume(pos);
 
-            return std::string(retval);
+            RETURN(std::string(retval));
         }
 
         //##############   CHAR utils #######################
