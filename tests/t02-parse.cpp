@@ -317,3 +317,31 @@ c = "hello"
 
     }
 }
+
+TEST_CASE("string escapes") {
+    SUBCASE("backslash simple") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( 
+a : "a\f\n\\b"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.at_path("a").get<std::string>() == "a\f\n\\b");
+
+    }
+
+    SUBCASE("backslash hex") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( 
+a : "a\x20b"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.at_path("a").get<std::string>() == "a b");
+
+    }
+
+
+}
