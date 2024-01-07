@@ -405,6 +405,7 @@ namespace simpleConfig {
                             record_error("Unrecognized escape sequence in string");
                             consume(1);
                         }
+                        break;
                     case '\n' :
                         record_error("Unterminated string");
                         RETURN_NULLOPT;
