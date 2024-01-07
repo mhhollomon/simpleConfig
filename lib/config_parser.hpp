@@ -226,6 +226,7 @@ namespace simpleConfig {
         //##############   do_parse  #####################
         
         bool do_parse() {
+            ENTER;
 
             error_count = 0;
 
@@ -235,10 +236,10 @@ namespace simpleConfig {
 
             if (! eoi()) {
                 record_error("Not at end of input!");
-                return false;
+                RETURN_B(false);
             }
 
-            return not has_errors();
+            RETURN_B(not has_errors());
         }
 
     };

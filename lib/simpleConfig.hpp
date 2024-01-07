@@ -38,7 +38,7 @@ namespace simpleConfig {
     public :
 
         bool parse_file(std::string file_name) {
-            std::ifstream strm{file_name};
+            std::ifstream strm{file_name, std::ios_base::binary};
             return parse(strm);
         }
         bool parse(std::ifstream &strm) {

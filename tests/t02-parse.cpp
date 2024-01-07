@@ -273,3 +273,47 @@ TEST_CASE("at_path") {
     }
 }
 
+TEST_CASE("Comments") {
+    SUBCASE("Hash Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, 
+# This is a hash comment
+c = "hello" )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+
+    SUBCASE("Line Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, 
+// This is a c++ line comment
+c = "hello" )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+    
+    SUBCASE("Block Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b /* yup */ = 3 }, 
+/* 
+    This is a c block comment
+*/
+
+c = "hello"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.get_settings().at_path("a.b").get<int>() == 3);
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+}

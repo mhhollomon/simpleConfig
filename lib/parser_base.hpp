@@ -428,7 +428,7 @@ namespace simpleConfig {
                 }
             }
 
-            return buf.str();
+            RETURN(buf.str());
 
         }
 
@@ -467,6 +467,27 @@ namespace simpleConfig {
         }
 
 
+        // check to see if at the end of the line and returns
+        // how many chars to consume if desired. (0 means not at EOL)
+        // possibilities are '\n', '\f', '\f\n'
+        // so '\n\f' will only return 1.
+        //
+        // NOTE : This does NOT ensure that pos is valid.
+        int at_line_end(int pos = 0) {
+            int len = 0;
+            if (peek(pos) == '\n') {
+                RETURN(1);
+            } else if (peek(pos) == '\f') {
+                len +=1;
+                pos += 1;
+                if (valid_pos(pos) and peek(pos) == '\n') {
+                    len += 1;
+                }
+            }
+
+            return len;
+        }
+
         /****************************************************************
         * SKIP Processing
         ****************************************************************/
@@ -501,47 +522,58 @@ namespace simpleConfig {
                 //    " char = '" << peek() << "'\n";
                 switch (state) {
                     case skNormal : // Normal state
-                        if (peek(0) == '\n') {
-                            line_count += 1;
-                            consume(1);
-                        } else if (std::isspace(peek(0))) {
-                            consume(1);
-                        } else if (peek(0) == '#') {
-                            //std::cout << "--- Saw hash comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("//")) {
-                            //std::cout << "--- Saw line comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("/*")) {
-                            //std::cout << "--- Saw block comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skBlock;
-                        } else {
-                            skipping = false;
+                        {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
+                                line_count += 1;
+                                consume(eol_count);
+                            } else if (std::isspace(peek(0))) {
+                                consume(1);
+                            } else if (peek(0) == '#') {
+                                //std::cout << "--- Saw hash comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skLine;
+                            } else if (check_string("//")) {
+                                //std::cout << "--- Saw line comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skLine;
+                            } else if (check_string("/*")) {
+                                //std::cout << "--- Saw block comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skBlock;
+                            } else {
+                                skipping = false;
+                            }
                         }
                         break;
                     case skLine: // Line comment
-                        if (peek(0) == '\n') {
-                            //std::cout << "--- line comment end\n";
-                            state = skNormal;
-                            line_count += 1;
+                        {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
+                                //std::cout << "--- line comment end\n";
+                                state = skNormal;
+                                line_count += 1;
+                                consume(eol_count);
+                            } else {
+                                consume(1);
+                            }
                         }
-                        consume(1);
                         break;
                     case skBlock: // Block comment
                         if (match_string("*/")) {
                             //std::cout << "--- block comment end\n";
                             state = skNormal;
                         } else {
-                            if (peek(0) == '\n') {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
                                 line_count += 1;
+                                consume(eol_count);
+                            } else {
+                                consume(1);
                             }
-                            consume(1);
                         }
                         break;
                 }
