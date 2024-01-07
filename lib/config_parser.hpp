@@ -52,8 +52,29 @@ namespace simpleConfig {
         //##############   parse_array    ##############
         bool parse_array(Setting * setting) {
 
+            skip();
+            ENTER;
+
             // For the first one, it can be anything
             do {
+                if (peek() == '{') {
+                    consume(1);
+                    auto *element = new Setting(VT::GROUP);
+                    if (not parse_group(element)) {
+                        RETURN_B(false);
+                    }
+                    skip();
+                    if (! match_char('}')) {
+                        record_error("Did not see close brace for subgroup");
+                        RETURN_B(false);
+                    }
+                    consume(1);
+                    setting->add_child(*element);
+                    std::cout << "=== Array with group child now has array type = "
+                        << int(setting->array_type()) << "\n";
+                    break;
+                }
+
                 auto bv = match_bool_value();
                 if (bv) {
                     setting->add_child(*bv);
@@ -86,7 +107,25 @@ namespace simpleConfig {
                     consume(1);
                     skip();
                 }
-                if (setting->array_type() == VT::BOOL) {
+
+                if (setting->array_type() == VT::GROUP) {
+                    if (peek() != '{') {
+                        break;
+                    }
+                    consume(1);
+                    auto *element = new Setting(VT::GROUP);
+                    if (not parse_group(element)) {
+                        RETURN_B(false);
+                    }
+                    skip();
+                    if (! match_char('}')) {
+                        record_error("Did not see close brace for subgroup");
+                        RETURN_B(false);
+                    }
+                    consume(1);
+                    setting->add_child(*element);
+
+                } else if (setting->array_type() == VT::BOOL) {
                     auto bv = match_bool_value();
                     if (bv) {
                         setting->add_child(*bv);
@@ -125,11 +164,11 @@ namespace simpleConfig {
             Setting tester{};
 
             if (match_scalar_value(&tester)) {
-                record_error("All values in an array must be the same scalar type");
-                return false;
+                record_error("All values in an array must be the same type");
+                RETURN_B(false);
             }
 
-            return true;
+            RETURN_B(true);
 
         }
 
@@ -179,17 +218,19 @@ namespace simpleConfig {
         //##############   setting ##########################
 
         bool parse_setting(Setting * parent) {
+            skip();
+            ENTER;
 
             auto name = match_name();
             if ( ! name ) {
-                return false;
+                RETURN_B(false);
             }
 
             skip();
 
             if (not match_chars(0, ":=")) {
                 record_error("Expecting : or = after setting name");
-                return false;
+                RETURN_B(false);
             }
             consume(1);
 
@@ -197,18 +238,21 @@ namespace simpleConfig {
 
             if (!new_setting) {
                 record_error("Setting named "s + *name + " already defined in this context");
-                return false;
+                RETURN_B(false);
             }
 
             skip();
-
-            return parse_setting_value(new_setting);
+            bool retval = parse_setting_value(new_setting);
+            RETURN_B(retval);
             
         }
 
         //##############   parse_group #####################
 
         bool parse_group(Setting * parent) {
+            skip();
+            ENTER;
+
             bool at_least_one = false;
             while (1) {
                 if (!parse_setting(parent)) break;
@@ -220,7 +264,7 @@ namespace simpleConfig {
                 skip();
             }
 
-            return at_least_one;
+            RETURN_B(at_least_one);
         }
 
         //##############   do_parse  #####################

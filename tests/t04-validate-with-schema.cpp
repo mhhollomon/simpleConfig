@@ -308,3 +308,26 @@ launch : {
 
     }
 }
+
+TEST_CASE("array with group") {
+    SUBCASE("ok") {
+        auto schema_text = " b : { _t : array _at : group  a : string b : float}"s;
+        auto config_text = "b = [ { a = \"h\", b = 42.0 } ];"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(config_text));       
+    }
+    SUBCASE("bad") {
+        auto schema_text = " b : { _t : array _at : group  a : string b : float}"s;
+        auto config_text = "b = [ { a = 5, b = 42.0 } ];"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK_FALSE(cfg.parse(config_text));       
+    }
+}

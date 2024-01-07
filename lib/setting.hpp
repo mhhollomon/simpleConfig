@@ -50,7 +50,9 @@ namespace simpleConfig {
         ValType deduce_scalar_type(T v) {
             if constexpr (std::is_same_v<T, bool>) {
                 return ValType::BOOL;
-            } else if constexpr (std::is_convertible_v<std::string, T>) {
+            } else if constexpr (std::is_same_v<T, Setting>) {
+                return ValType::GROUP;
+            } else if constexpr (std::is_convertible_v<T, std::string>) {
                 return ValType::STRING;
             } else if constexpr (std::is_integral_v<T>) {
                 return ValType::INTEGER;

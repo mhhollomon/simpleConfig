@@ -154,6 +154,11 @@ namespace simpleConfig {
                                     record_error("Array float element value is out of range" , {});
                                 }
                             }
+                        } else if (snode->array_type == ValType::GROUP) {
+                            for (auto &child : setting) {
+                                validate(&child, snode);
+                                
+                            }
                         }
 
 

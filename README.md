@@ -5,15 +5,16 @@ For some configuration files, validating the structure of the parsed settings
 (required keys are present, no unknown keys are present, values have acceptable types.)
 can be as time consuming to write code as the parsing of the syntax.
 
-## Design Goals
 - Based on [libconfig](https://github.com/hyperrealm/libconfig)
 - C++17 based.
-- will allow the user to specify a schema for the target configuration.
-- will be setup to work nicely with FetchConfig.
-- throw as little as possible without making the interface horrible.
-
+- Allows the user to specify a schema for the target configuration.
+- Works nicely with FetchConfig.
+- Error return and exception throwing interfaces available when interrogating
+  the configuration.
 
 ## Differences from libconfig
+- Arrays may have groups as elements.
+  
 - Only one integer type (long)
 - Only one float type (double)
 - Hex numbers are integers *only*
@@ -56,7 +57,6 @@ if (! cfg.parse(my_istream)) {
 
 ## TODO
 - Add a way to set defaults for arrays in the schema.
-- Add an "at_path" to find settings deep in the heirarchy.
 - Add a way to have an "enum" like contraint.
 - Add parse locations to both settings and schema
   so that validation errors can reference them.

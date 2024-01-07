@@ -229,6 +229,48 @@ TEST_CASE("array") {
     CHECK_FALSE(cfg.parse("bad : [ 42.0 ( 1, 2 ) ]"));
 }
 
+TEST_CASE("array with subgroups") {
+    SUBCASE("simple (ok)") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( good : [ { a: 1 }] )DELIM"s;
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(input));
+        auto & s = cfg.get_settings();
+        auto &good = s.at("good");
+        CHECK(good.count() == 1);
+        auto &a = good.at(0);
+        CHECK(a.is_group());
+        CHECK(a.at("a").get<int>() == 1);
+
+    }
+    SUBCASE("multiple (ok)") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( good : [ { a: 1 }, { b: 42}] )DELIM"s;
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(input));
+        auto & s = cfg.get_settings();
+        auto &good = s.at("good");
+        CHECK(good.count() == 2);
+        auto &a = good.at(0);
+        CHECK(a.is_group());
+        CHECK(a.at("a").get<int>() == 1);
+        auto &b = good.at(1);
+        CHECK(b.is_group());
+        CHECK(b.at("b").get<int>() == 42);
+
+    }
+
+    SUBCASE("Different types (bad)") {
+         simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( bad : [ { a: 1 }, 57.7 ] )DELIM"s;
+        CHECK_FALSE(cfg.parse(input));
+       
+    }
+}
+
 TEST_CASE("errors") {
     simpleConfig::Config cfg;
 

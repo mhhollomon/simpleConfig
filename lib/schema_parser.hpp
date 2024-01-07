@@ -545,6 +545,9 @@ namespace simpleConfig {
             if (parent->vtype == VT::GROUP) {
                 at_least_one = true; 
                 parse_keyspec_list(parent);
+            } else if (parent->vtype == VT::ARRAY and 
+                        parent->array_type == VT::GROUP) {
+                at_least_one = parse_keyspec_list(parent);                
             } else if (parent->vtype == VT::NONE) {
                 at_least_one = parse_keyspec_list(parent);
                 if (at_least_one)
