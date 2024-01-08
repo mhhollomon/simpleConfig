@@ -485,6 +485,66 @@ namespace simpleConfig {
             RETURN_B(false);
 
         }
+
+        //############## parse_ex_enum #######################
+        bool parse_ex_enum(SchemaNode *parent, ValType vtype){
+            skip();
+            ENTER;
+
+            if (match_keyword({"_enum"})) {
+
+                skip();
+
+                if (! expect_char(':')) {
+                    record_error("Expecting ':' between key and value");
+                    RETURN_B(false);
+                }
+
+                skip();
+
+                if (! expect_char('[')) {
+                    record_error("Expecting '[' to start enum list");
+                    RETURN_B(false);
+                }
+
+                auto *enum_setting = new Setting(VT::ARRAY);
+                if (!parse_array(enum_setting)) {
+                    delete enum_setting;
+                    RETURN_B(false);
+                }
+
+                skip();
+                if (peek() != ']') {
+                    record_error("Did not see closing bracket for enum array");
+                    delete enum_setting;
+                    RETURN_B(false);
+                }
+
+                consume(1);
+                optional_sep();
+
+                if (vtype != VT::STRING and vtype != VT::FLOAT and 
+                        vtype != VT::INTEGER) {
+                    record_error("_enum tag is only valid if type is int, float, or string");
+                    delete enum_setting;
+                   RETURN_B(false);
+                }
+
+                if (enum_setting->array_type() != vtype) {
+                    record_error("Type of enum entry must match setting type");
+                    delete enum_setting;
+                    RETURN_B(false);
+                }
+
+                parent->enum_values.reset(enum_setting);
+                RETURN_B(true);
+            }
+
+            RETURN_B(false);
+
+        }
+
+
         //##############   parse_ex_default #####################
         bool parse_ex_default(SchemaNode * parent) {
             skip();
@@ -539,6 +599,7 @@ namespace simpleConfig {
                 auto p_vtype = parent->vtype == 
                         VT::ARRAY ? parent->array_type : parent->vtype;
                 parse_ex_range(parent, p_vtype);
+                parse_ex_enum(parent, p_vtype);
                 parse_ex_default(parent);
             }
 

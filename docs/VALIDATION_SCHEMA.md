@@ -55,7 +55,8 @@ baz! : {
 # concise format (see the extended format).
 array_key : [ int ]
 
-# Arrays may only have scalars (float, int, bool, string) as elements.
+# Arrays may have the following types as elements
+#  (group, float, int, bool, string).
 
 # List may be specified. There is no validation of entries
 # of the list
@@ -100,6 +101,14 @@ flt_key : { _t:float; _range:[-100.0, 42.0]}
 # Each element must be -100 >= e =< 30
 key : { _t : array, _arrtype : int _length : [3 , 5], _range : [-100, 30]}
 flt_key : { _t : array, _at : float _len : [3 , 5], _range : [-100.0, 30.666]}
+
+# For arrays of groups, keys must be given to validate the group elements
+grp_array : { _t : array; _at : group
+    key1 : string
+    key2! : {
+        subgroup : float
+    }
+}
 
 # A single number in the length means the array must be exactly that long.
 key : { _t : array, _at : float; _len : [2] }
@@ -148,7 +157,8 @@ typename = 'int' | 'float' | 'bool' | 'string' | 'any'
 extended_list = 
     ex_typespec ex_required? 
         ex_arrtype? ex_length? 
-        ex_range? ex_default? keyspec_list? |
+        ex_range? ex_enum?
+        ex_default? keyspec_list? |
     keyspec_list
      
 
@@ -157,12 +167,15 @@ ex_required = ( '_r' | '_required' ) ':' bool_value sep?
 ex_arrtype  = ( '_at' | "_arrtype' ) ':' int_value sep?
 ex_length   = ( '_len' | '_length' ) ':' range_value sep?
 ex_range   =  '_range' ':' range_value sep?
+ex_enum     = '_enum' ':' enum_array sep?
 ex_default  = ( '_d' | '_default' ) ':' setting sep?
 
 extended_typename = typename | 'group' | 'list' | 'array'
 range_value = '[' int_value sep? (int_value sep?)? ']' sep?
+enum_array = '[' enum_value sep? (enum_value sep?)? ']' sep?
 
-setting = bool_value | int_value | float_value | string_value
+setting    = bool_value | int_value | float_value | string_value
+enum_value = int_value | float_value | string_value
 bool_value = /[Tt][Rr][Uu][Ee] | [Ff][Aa][Ll][Ss][Ee]/
-int_value = /[+-]?[0-9]+ | /0[xX][0-9]+/
+int_value  = /[+-]?[0-9]+ | /0[xX][0-9]+/
 ```

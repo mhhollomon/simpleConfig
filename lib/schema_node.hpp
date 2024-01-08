@@ -27,6 +27,7 @@ namespace simpleConfig {
         Range<long> int_range{};
         Range<double> float_range{};
         std::unique_ptr<Setting> dflt;
+        std::unique_ptr<Setting> enum_values;
 
         std::map<std::string, SchemaNode> subkeys;
 

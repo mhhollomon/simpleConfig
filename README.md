@@ -5,7 +5,7 @@ For some configuration files, validating the structure of the parsed settings
 (required keys are present, no unknown keys are present, values have acceptable types.)
 can be as time consuming to write code as the parsing of the syntax.
 
-- Based on [libconfig](https://github.com/hyperrealm/libconfig)
+- Config language is based on [libconfig](https://github.com/hyperrealm/libconfig)
 - C++17 based.
 - Allows the user to specify a schema for the target configuration.
 - Works nicely with FetchConfig.
@@ -26,6 +26,9 @@ See [Config API](docs/API.md) for more details.
 Allows the validation of data types, data ranges, array sizes, required keys, 
 and more.
 
+Integers, floats, and strings can be constrained to be one of a small list (
+  that is, like an enum )
+
 See [Validation Schema](docs/VALIDATION_SCHEMA.md) docs for more information.
 
 ## Sample Usage
@@ -37,12 +40,13 @@ See [Validation Schema](docs/VALIDATION_SCHEMA.md) docs for more information.
 
 std::string schema = R"DELIM(
 // long schema ....
-)DELIM"s
+)DELIM"
 
 simpleConfig::Config cfg;
 
 if (!cfg.set_schema(schema)) {
   std::cerr << "Bad Schema\n";
+  cfg.stream_errors(std::cerr);
 }
 
 if (! cfg.parse(file_name)) {
@@ -57,7 +61,7 @@ if (! cfg.parse(my_istream)) {
 
 ## TODO
 - Add a way to set defaults for arrays in the schema.
-- Add a way to have an "enum" like contraint.
+- Add a way to set defaults for groups in the schema.
 - Add parse locations to both settings and schema
   so that validation errors can reference them.
 - Add code coverage metrics.
