@@ -9,4 +9,10 @@ namespace simpleConfig {
             or v == ValType::FLOAT);
     }
 
+    bool valtype_is_composite(ValType v) {
+        return (v == ValType::ARRAY
+            or v == ValType::GROUP
+            or v == ValType::LIST
+            );
+    }
 }

@@ -286,19 +286,41 @@ TEST_CASE("errors") {
 }
 
 
-TEST_CASE("at_path") {
+TEST_CASE("at_*") {
     //These really should be in t01, but it is easier to let the parser
     // build the nested structure.
-    SUBCASE("string") {
-            simpleConfig::Config cfg;
+    SUBCASE("at_vpath") {
+        simpleConfig::Config cfg;
 
-            std::string input = R"DELIM( a : { b = 3 }, c = "hello" )DELIM"s;
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
 
-            CHECK(cfg.parse(input));
+        CHECK(cfg.parse(input));
 
-            std::vector x = {"a"s,"b"s};
+        std::vector x = {"a"s,"b"s};
 
-            CHECK(cfg.get_settings().at_path(x).get<int>() == 3);
+        CHECK(cfg.at_vpath(x).get<int>() == 3);
+
+        CHECK(cfg.at_vpath({"d", "2"}).get<int>() == 5);
+    }
+
+    SUBCASE("at_path") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        char y[] = "a.b";
+        CHECK(cfg.at_path(y).get<int>() == 3);
+
+        std::string ys{"a.b"};
+        CHECK(cfg.at_path(ys).get<int>() == 3);
+
+        CHECK(cfg.at_path("d.[2]").get<int>() == 5);
+
 
     }
     SUBCASE("array index") {
@@ -308,11 +330,29 @@ TEST_CASE("at_path") {
 
             CHECK(cfg.parse(input));
 
-            CHECK(cfg.at_path({"a","b","2"}).get<int>() == 5);
+            CHECK(cfg.at_vpath({"a","b","2"}).get<int>() == 5);
 
             CHECK(cfg.at_path("a.b.[2]"s).get<int>() == 5);
 
     }
+
+        
+    SUBCASE("at_tpath") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_tpath("a", "b").get<int>() == 3);
+
+        CHECK(cfg.at_tpath("d", 2).get<int>() == 5);
+
+
+    }
+
 }
 
 TEST_CASE("Comments") {

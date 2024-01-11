@@ -8,5 +8,6 @@ namespace simpleConfig {
     };
 
     bool valtype_is_scalar(ValType v);
+    bool valtype_is_composite(ValType v);
     
 }
