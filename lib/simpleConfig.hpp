@@ -57,6 +57,23 @@ namespace simpleConfig {
         Setting& get_settings() const {
             return *cfg_;
         }
+
+        Setting &at(int idx) {
+            return get_settings().at(idx);
+        }
+
+        Setting *lkup(int idx) {
+            return get_settings().lkup(idx);
+        }
+
+        Setting &at(const std::string& name) {
+            return get_settings().at(name);
+        }
+
+        Setting *lkup(const std::string& name) {
+            return get_settings().lkup(name);
+        }
+
         Setting& at_path(std::string_view path) {
             return get_settings().at_path(path);
         }
