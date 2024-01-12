@@ -61,13 +61,27 @@ namespace simpleConfig {
             return get_settings().at_path(path);
         }
 
+        Setting* lkup_path(std::string_view path) {
+            return get_settings().lkup_path(path);
+        }
+
+
         Setting& at_vpath(const std::vector<std::string> &v) {
             return get_settings().at_vpath(v);
+        }
+
+        Setting* lkup_vpath(const std::vector<std::string> &v) {
+            return get_settings().lkup_vpath(v);
         }
 
         template <typename ... args_t>
         Setting& at_tpath(args_t ...args) {
             return get_settings().at_tpath(args...);
+        }
+
+        template <typename ... args_t>
+        Setting* lkup_tpath(args_t ...args) {
+            return get_settings().lkup_tpath(args...);
         }
 
         bool has_errors() const {return (errors.count() > 0); }

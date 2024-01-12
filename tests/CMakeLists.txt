@@ -11,7 +11,7 @@ target_link_libraries(${testname}
 
 add_test(NAME ${testname} COMMAND ${testname})
 
-## Parse Test ###########################
+## Parse Test ######################################
 set( Testname t02-parse)
 add_executable (${Testname})
 target_sources(${Testname} PRIVATE "${Testname}.cpp")
@@ -20,7 +20,7 @@ target_link_libraries(${Testname}
 
 add_test(NAME ${Testname} COMMAND ${Testname})
 
-## Parse Schema Test ###########################
+## Parse Schema Test ###############################
 set( Testname t03-parse-schema)
 add_executable (${Testname})
 target_sources(${Testname} PRIVATE "${Testname}.cpp")
@@ -29,8 +29,17 @@ target_link_libraries(${Testname}
 
 add_test(NAME ${Testname} COMMAND ${Testname})
 
-## Validate against Schema Test ###########################
+## Validate against Schema Test ######################
 set( Testname t04-validate-with-schema)
+add_executable (${Testname})
+target_sources(${Testname} PRIVATE "${Testname}.cpp")
+target_link_libraries(${Testname}
+    PRIVATE doctest simpleConfig)
+
+add_test(NAME ${Testname} COMMAND ${Testname})
+
+## Streaming Test ####################################
+set( Testname t05-streaming)
 add_executable (${Testname})
 target_sources(${Testname} PRIVATE "${Testname}.cpp")
 target_link_libraries(${Testname}

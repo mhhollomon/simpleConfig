@@ -480,6 +480,8 @@ namespace simpleConfig {
             throw std::runtime_error("Setting is not an array");
         }
 
+        /*=============== Getting Data ================*/
+
         Setting &at(int idx) {
             if (! is_composite()) {
                 throw std::runtime_error("at(int) called on a non-composite");
@@ -578,6 +580,35 @@ namespace simpleConfig {
 
         }
 
+        Setting* lkup_path(std::string_view path) {
+            auto point_index = path.find('.');
+
+            Setting* retval = nullptr;
+
+            std::string_view piece;
+            if (point_index == std::string::npos) {
+                piece = path;
+                path = ""sv;
+                
+            } else {
+                piece = path.substr(0, point_index);
+                path.remove_prefix(point_index + 1);
+            }
+
+            if (piece[0] == '[') {
+                int index = std::stol(std::string(piece.substr(1, piece.size()-2)));
+                retval = lkup(index);
+            } else {
+                retval = lkup(std::string(piece));
+            }
+
+            if (retval && not path.empty()) {
+                retval = retval->lkup_path(path);
+            }
+
+            return retval;
+
+        }
 
         Setting &at_vpath(const std::vector<std::string> &path) {
             Setting *current = this;
@@ -602,6 +633,32 @@ namespace simpleConfig {
             return *current;
         }
 
+
+        Setting *lkup_vpath(const std::vector<std::string> &path) {
+            Setting *current = this;
+
+            for (auto const &e : path) {
+                auto first_char = e.front();
+
+                if (std::isdigit(first_char) or first_char == '-' or first_char == '+' ) {
+                    const char * start = e.c_str();
+                    char * end;
+                    int number = std::strtol(start, &end, 10);
+                    if (end == nullptr or (end - start) < int(e.size())) {
+                        return nullptr;
+                    }
+                    current = current->lkup(number);
+
+                } else {
+                    current = current->lkup(e);
+                }
+                if (!current) return nullptr;
+            }
+
+            return current;
+        }
+
+
         template <typename first_t, typename ... pack_t>
         Setting &at_tpath(first_t first_arg, pack_t...args) {
             return at(first_arg).at_tpath(args...);
@@ -612,6 +669,17 @@ namespace simpleConfig {
             return at(first_arg);
         }
 
+        template <typename first_t, typename ... pack_t>
+        Setting *lkup_tpath(first_t first_arg, pack_t...args) {
+            auto *f = lkup(first_arg);
+            if (not f) return nullptr;
+            return f->lkup_tpath(args...);
+        }
+
+        template<typename first_t>
+        Setting *lkup_tpath(first_t first_arg) {
+            return lkup(first_arg);
+        }
 
         auto begin() {
             return children_.begin();
@@ -621,16 +689,22 @@ namespace simpleConfig {
             return children_.end();
         }
 
-        //used by the parser. Probably will go away
-        Setting *create_child(const std::string &name) {
-            return try_add_child(name, ValType::NONE);
-        }
+        std::ostream &stream_setting(std::ostream& strm,
+            const std::string prefix = "");
 
-        Setting *create_child() {
-            return try_add_child(ValType::NONE);
-        }
+    private :
 
+        void stream_scalar(std::ostream& strm,
+            const std::string prefix);
 
+        void stream_group(std::ostream& strm,
+            const std::string prefix);
+
+        void stream_array(std::ostream& strm,
+            const std::string prefix);
+
+        void stream_list(std::ostream& strm,
+            const std::string prefix);
 
     };
 

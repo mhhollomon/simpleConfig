@@ -355,6 +355,76 @@ TEST_CASE("at_*") {
 
 }
 
+TEST_CASE("lkup_*") {
+    //These really should be in t01, but it is easier to let the parser
+    // build the nested structure.
+    SUBCASE("lkup_vpath") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        std::vector x = {"a"s,"b"s};
+
+        CHECK(cfg.lkup_vpath(x)->get<int>() == 3);
+
+        CHECK(cfg.lkup_vpath({"d", "2"})->get<int>() == 5);
+    }
+
+    SUBCASE("lkup_path") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        char y[] = "a.b";
+        CHECK(cfg.lkup_path(y)->get<int>() == 3);
+
+        std::string ys{"a.b"};
+        CHECK(cfg.lkup_path(ys)->get<int>() == 3);
+
+        CHECK(cfg.lkup_path("d.[2]")->get<int>() == 5);
+
+
+    }
+    SUBCASE("array index") {
+            simpleConfig::Config cfg;
+
+            std::string input = R"DELIM( a : { b = [1 ,2 ,5] }, c = "hello" )DELIM"s;
+
+            CHECK(cfg.parse(input));
+
+            CHECK(cfg.lkup_vpath({"a","b","2"})->get<int>() == 5);
+
+            CHECK(cfg.lkup_path("a.b.[2]"s)->get<int>() == 5);
+
+    }
+
+        
+    SUBCASE("lkup_tpath") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.lkup_tpath("a", "b")->get<int>() == 3);
+
+        CHECK(cfg.lkup_tpath("d", 2)->get<int>() == 5);
+
+
+    }
+
+}
+
+
 TEST_CASE("Comments") {
     SUBCASE("Hash Comment") {
         simpleConfig::Config cfg;

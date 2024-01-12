@@ -496,7 +496,7 @@ namespace simpleConfig {
                 if (peek() == ')') {
                     return true;
                 }
-                Setting *child = setting->create_child();
+                Setting *child = setting->try_add_child(ValType::NONE);
                 if (!parse_setting_value(child)) {
                     return false;
                 }
@@ -575,7 +575,7 @@ namespace simpleConfig {
             }
             consume(1);
 
-            auto new_setting = parent->create_child(*name);
+            auto new_setting = parent->try_add_child(*name, ValType::NONE);
 
             if (!new_setting) {
                 record_error("Setting named "s + *name + " already defined in this context");

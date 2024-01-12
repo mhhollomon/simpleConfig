@@ -38,23 +38,63 @@ detail.
 
 ## class Config
 
-- `bool parse_file(std::string file_name)`
-- `bool parse(std::ifstream& strm)`
-- `bool parse(std::string& input)`
+### Parsing
 
-Prse the given information and store a setting tree for it. The return tells
-you if it succeeded or not. If the return value is `false`, the errors are most
-likely available with `stream_errors`.
+#### `bool parse_file(std::string file_name)`
+#### `bool parse(std::ifstream& strm)`
+#### `bool parse(std::string& input)`
 
-- `Setting& get_settngs()`
+Parse the given information and store a setting tree for it. The return tells
+you if it succeeded or not. If the return value is `false`, there were errors
+which can be interrogated via the error methods below.
+
+#### `bool set_schema(std::string schema_text)`
+
+Parse the schema and make it active. Any  config parsing done after this will
+also then be validated against then give schema.
+
+If `false` is returned, there were errors which can be interrogated via the
+error methods below.
+
+#### `Setting& get_settngs()`
 
 Return a reference to the setting tree. If the last parse failed, this will be
 partial, but valid until the point of failure.
 
-- `std::ostream& stream_errors(std::ostream& strm)`
+### Errors
+
+#### `bool has_errors()`
+
+Return `true` if there were errors during the last parsing operation.
+
+#### `std::ostream& stream_errors(std::ostream& strm)`
 
 Format the error message gathered during parsing and place on the output
-stream. 
+stream.
+
+#### `const error_list &get_errors()`
+
+Return an `error_list` of the errors generated.
+
+#### `Setting& at(std::string const &name)`
+#### `Setting& at(int idx)`
+#### `Setting& at_path(std::string_view path)`
+#### `Setting& at_vpath(std::vector<std::string> v)`
+#### `Setting& at_tpath(Args... args)`
+#### `Setting* lkup(std::string const &name)`
+#### `Setting* lkup(int idx)`
+#### `Setting* lkup_path(std::string_view path)`
+#### `Setting* lkup_vpath(std::vector<std::string> v)`
+#### `Setting* lkup_tpath(Args... args)`
+
+These are all convienence functions and are equivalent to first
+calling `get_settings()`
+
+```cpp
+auto &s = cfg.at("foo");
+// same as
+auto &s = cfg.get_settings().at("foo");
+```
 
 ## class Setting
 
@@ -64,7 +104,7 @@ array).
 
 
 ### Constructors
--  `Setting(setting_type t = setting_type::BOOL)`
+#### `Setting(setting_type t = setting_type::BOOL)`
 
 Create a Setting of the desired type of value. The actual
 value is the default initialized value for the type.
@@ -83,7 +123,6 @@ there to help disabiguate the overloads.
 
 - `bool is_composite()`
 - `bool is_scalar()`
-
 - `bool is_boolean()`
 - `bool is_integer()`
 - `bool is_float()`
@@ -91,7 +130,6 @@ there to help disabiguate the overloads.
 - `bool is_group()`
 - `bool is_list()`
 - `bool is_array()`
-
 - `bool is_numeric()`
 
 ### Setting/Updating a Scalar Value
@@ -115,9 +153,9 @@ composite. Don't hold on to it for long.
 
 ### Working with composites
 
-- `Setting& make_list()`
-- `Setting& make_group()`
-- `Setting& make_array()`
+#### `Setting& make_list()`
+#### `Setting& make_group()`
+#### `Setting& make_array()`
 
 Switches the Setting to be the requested type of composite. If it already is
 correct, this is a no-op. If the type actually changes, any existing children
@@ -172,16 +210,16 @@ end. The method throws if the index is out of range or the Setting is a scalar.
 
 Note that this does work for groups, but you don't get access to the name.
 
-#### Setting& at_path(std::string const &path)
+#### Setting& at_path(std::string_view path)
 
 Allows you to get settings deep in the heirarchy.
 `path` is a string composed of dot delimited pieces that form the lookup.
-Arrays and List can be navigated using '[]' enclosed integers.
+Arrays and Lists can be navigated using '[]' enclosed integers.
 
 ```CPP
 auto &setting = start_setting.at_path("a.b.[-3].c");
 
-// Same as
+// Equivalent to :
 
 auto &setting = start_setting.at("a").at("b").at(-3).st("c");
 ```
@@ -208,17 +246,15 @@ Template version of at_vpath. Faster than `at_vpath`
 ```C++
 auto &s = setting.at_tpath("a", "b", 2, "c" );
 
-# equivalent to :
+// equivalent to :
 auto &s = setting.at("a").at("b").at(2).at("c");
 
 ```
 
 #### Setting* lkup(std::string const &name)
-#### Setting* lkup(std::string_view name)
 #### Setting* lkup(int idx)
-#### Setting* lkup_path(std::string const &path)
 #### Setting* lkup_path(std::string_view path)
-#### Setting* lkup_vpath(std::vector\<std::string_view> v)
+#### Setting* lkup_vpath(std::vector\<std::string> v)
 #### Setting* lkup_tpath(Args... args)
 
 Equivalent to their `at*` cousins except that they return `nullptr`
