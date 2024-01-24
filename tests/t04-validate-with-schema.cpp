@@ -308,3 +308,62 @@ launch : {
 
     }
 }
+
+TEST_CASE("array with group") {
+    SUBCASE("ok") {
+        auto schema_text = " b : { _t : array _at : group  a : string b : float}"s;
+        auto config_text = "b = [ { a = \"h\", b = 42.0 } ];"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(config_text));       
+    }
+    SUBCASE("bad") {
+        auto schema_text = " b : { _t : array _at : group  a : string b : float}"s;
+        auto config_text = "b = [ { a = 5, b = 42.0 } ];"s;
+
+        auto cfg = Config();
+
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK_FALSE(cfg.parse(config_text));       
+    }
+}
+
+TEST_CASE("enums on scalars") {
+    SUBCASE("string enum") {
+        auto schema_text = "foo : { _t : string _enum:[\"a\", \"b\", \"yellow\"]}"s;
+        auto config_text = "foo : \"yellow\""s;
+        auto cfg = Config();
+
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(config_text));       
+
+    }
+    SUBCASE("int enum") {
+        auto schema_text = "foo : { _t : int _enum:[2, 8, 16]}"s;
+        auto config_text = "foo : 8"s;
+        auto cfg = Config();
+
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(config_text));       
+
+    }
+    SUBCASE("float enum") {
+        auto schema_text = "foo : { _t : float _enum:[2.0, 8.16, 16.32]}"s;
+        auto config_text = "foo : 8.16"s;
+        auto cfg = Config();
+
+        INFO(cfg.get_errors());
+        CHECK(cfg.set_schema(schema_text));
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(config_text));       
+
+    }
+}

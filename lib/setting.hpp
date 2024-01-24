@@ -12,14 +12,12 @@
 
 using namespace std::literals::string_literals;
 
+using namespace std::literals::string_view_literals;
 
 namespace simpleConfig {
     // These make up the Config Tree that
     // we give to the user.
     class Setting {
-    public :
-
-    private :
 
         ValType type_;
 
@@ -50,7 +48,9 @@ namespace simpleConfig {
         ValType deduce_scalar_type(T v) {
             if constexpr (std::is_same_v<T, bool>) {
                 return ValType::BOOL;
-            } else if constexpr (std::is_convertible_v<std::string, T>) {
+            } else if constexpr (std::is_same_v<T, Setting>) {
+                return ValType::GROUP;
+            } else if constexpr (std::is_convertible_v<T, std::string>) {
                 return ValType::STRING;
             } else if constexpr (std::is_integral_v<T>) {
                 return ValType::INTEGER;
@@ -61,16 +61,6 @@ namespace simpleConfig {
             }
         }
 
-        static constexpr bool is_scalar_type(ValType t) {
-            using st = ValType;
-            return (t == st::INTEGER or t == st::FLOAT or t == st::BOOL or t == st::STRING);
-        }
-
-        static constexpr bool is_composite_type(ValType t) {
-            using st = ValType;
-            return (t == st::GROUP or t == st::LIST or t == st::ARRAY);
-        }
-        
 
     public :
         Setting(ValType t = ValType::BOOL) : type_{t} {}
@@ -233,8 +223,8 @@ namespace simpleConfig {
         bool is_array()   const { return (type_ == ValType::ARRAY); }
 
         bool is_numeric()   const { return (is_integer() or is_float()); }
-        bool is_composite() const { return (is_group() or is_list() or is_array()); }
-        bool is_scalar()    const { return (is_scalar_type(type_)); }
+        bool is_composite() const { return (valtype_is_composite(type_)); }
+        bool is_scalar()    const { return (valtype_is_scalar(type_)); }
 
         void make_list() {
             if (!is_list()) {
@@ -334,7 +324,7 @@ namespace simpleConfig {
                 return children_.emplace_back(t);
 
             } else if (is_array()) {
-                if (is_composite_type(t)) {
+                if (valtype_is_composite(t)) {
                     throw std::runtime_error("Arrays may only have scalar children");
                 }
 
@@ -413,14 +403,16 @@ namespace simpleConfig {
         }
 
         Setting* try_add_child(ValType t) {
+            
             if (is_group()) {
+                // group children must have a name
                 return nullptr;
 
             } else if (is_list()) {
                 return &(children_.emplace_back(t));
 
             } else if (is_array()) {
-                if (is_composite_type(t)) {
+                if (valtype_is_composite(t) and t != ValType::GROUP) {
                     return nullptr;
                 }
 
@@ -488,6 +480,8 @@ namespace simpleConfig {
             throw std::runtime_error("Setting is not an array");
         }
 
+        /*=============== Getting Data ================*/
+
         Setting &at(int idx) {
             if (! is_composite()) {
                 throw std::runtime_error("at(int) called on a non-composite");
@@ -508,7 +502,7 @@ namespace simpleConfig {
             return children_.at(idx);
         }
 
-        Setting *lookup(int idx) {
+        Setting *lkup(int idx) {
             if (! is_composite()) {
                 return nullptr;
             }
@@ -543,7 +537,7 @@ namespace simpleConfig {
             return children_.at(iter->second);
         }
 
-        Setting *lookup(const std::string& name) {
+        Setting *lkup(const std::string& name) {
             if (!is_group()) {
                 return nullptr;
             }
@@ -556,50 +550,68 @@ namespace simpleConfig {
             return &(children_.at(iter->second));
         }
 
-
-        Setting &at_path(const std::string &str_path) {
-            // probably better ways to do this, but whatever.
-            std::vector<std::string> path;
-            size_t offset = 0;
-            size_t plen = 0;
-            bool at_end = false;
-            while(not at_end) {
-                auto point_index = str_path.find('.', offset);
-                if (point_index == std::string::npos) {
-                    point_index = str_path.size();
-                    at_end = true;
-                }
-
-                if (str_path[offset] == '[') {
-                    offset += 1;
-                    plen = point_index-1-offset;
-                    if (str_path[point_index-1] != ']') {
-                        std::stringstream ss;
-                        ss << "at_path(string) : numeric index starting at "
-                            << (offset-1) 
-                            << " does not have a closing bracket";
-                        throw std::runtime_error(ss.str());
-
-                    }
-                } else {
-                    plen = point_index-offset;
-                }
-                path.emplace_back(str_path, offset, plen);
-
-                offset = point_index+1;
+        Setting &at_path(std::string_view path) {
+            auto point_index = path.find('.');
+            std::string_view piece;
+            if (point_index == std::string::npos) {
+                piece = path;
+                path = ""sv;
+                
+            } else {
+                piece = path.substr(0, point_index);
+                path.remove_prefix(point_index + 1);
             }
 
-            return at_path(path);
+            if (piece[0] == '[') {
+                int index = std::stol(std::string(piece.substr(1, piece.size()-2)));
+                if (path.empty())  {
+                    return at(index);
+                } else {
+                    return at(index).at_path(path);
+                }
+            } else {
+                if (path.empty())  {
+                    return at(std::string(piece));
+                } else {
+                    return at(std::string(piece)).at_path(path);
+                }
+            }
+            throw std::runtime_error("How did we get here ?");
 
         }
 
-        Setting &at_path(const std::vector<std::string> &path) {
-            Setting *current = this;
+        Setting* lkup_path(std::string_view path) {
+            auto point_index = path.find('.');
 
-            std::cout << "At_path(vector) called with:\n";
-            for (auto const &s : path) {
-                std::cout << "  " << s << "\n";
+            Setting* retval = nullptr;
+
+            std::string_view piece;
+            if (point_index == std::string::npos) {
+                piece = path;
+                path = ""sv;
+                
+            } else {
+                piece = path.substr(0, point_index);
+                path.remove_prefix(point_index + 1);
             }
+
+            if (piece[0] == '[') {
+                int index = std::stol(std::string(piece.substr(1, piece.size()-2)));
+                retval = lkup(index);
+            } else {
+                retval = lkup(std::string(piece));
+            }
+
+            if (retval && not path.empty()) {
+                retval = retval->lkup_path(path);
+            }
+
+            return retval;
+
+        }
+
+        Setting &at_vpath(const std::vector<std::string> &path) {
+            Setting *current = this;
 
             for (auto const &e : path) {
                 auto first_char = e.front();
@@ -622,6 +634,53 @@ namespace simpleConfig {
         }
 
 
+        Setting *lkup_vpath(const std::vector<std::string> &path) {
+            Setting *current = this;
+
+            for (auto const &e : path) {
+                auto first_char = e.front();
+
+                if (std::isdigit(first_char) or first_char == '-' or first_char == '+' ) {
+                    const char * start = e.c_str();
+                    char * end;
+                    int number = std::strtol(start, &end, 10);
+                    if (end == nullptr or (end - start) < int(e.size())) {
+                        return nullptr;
+                    }
+                    current = current->lkup(number);
+
+                } else {
+                    current = current->lkup(e);
+                }
+                if (!current) return nullptr;
+            }
+
+            return current;
+        }
+
+
+        template <typename first_t, typename ... pack_t>
+        Setting &at_tpath(first_t first_arg, pack_t...args) {
+            return at(first_arg).at_tpath(args...);
+        }
+
+        template<typename first_t>
+        Setting &at_tpath(first_t first_arg) {
+            return at(first_arg);
+        }
+
+        template <typename first_t, typename ... pack_t>
+        Setting *lkup_tpath(first_t first_arg, pack_t...args) {
+            auto *f = lkup(first_arg);
+            if (not f) return nullptr;
+            return f->lkup_tpath(args...);
+        }
+
+        template<typename first_t>
+        Setting *lkup_tpath(first_t first_arg) {
+            return lkup(first_arg);
+        }
+
         auto begin() {
             return children_.begin();
         }
@@ -630,16 +689,22 @@ namespace simpleConfig {
             return children_.end();
         }
 
-        //used by the parser. Probably will go away
-        Setting *create_child(const std::string &name) {
-            return try_add_child(name, ValType::NONE);
-        }
+        std::ostream &stream_setting(std::ostream& strm,
+            const std::string prefix = "");
 
-        Setting *create_child() {
-            return try_add_child(ValType::NONE);
-        }
+    private :
 
+        void stream_scalar(std::ostream& strm,
+            const std::string prefix);
 
+        void stream_group(std::ostream& strm,
+            const std::string prefix);
+
+        void stream_array(std::ostream& strm,
+            const std::string prefix);
+
+        void stream_list(std::ostream& strm,
+            const std::string prefix);
 
     };
 

@@ -229,6 +229,48 @@ TEST_CASE("array") {
     CHECK_FALSE(cfg.parse("bad : [ 42.0 ( 1, 2 ) ]"));
 }
 
+TEST_CASE("array with subgroups") {
+    SUBCASE("simple (ok)") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( good : [ { a: 1 }] )DELIM"s;
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(input));
+        auto & s = cfg.get_settings();
+        auto &good = s.at("good");
+        CHECK(good.count() == 1);
+        auto &a = good.at(0);
+        CHECK(a.is_group());
+        CHECK(a.at("a").get<int>() == 1);
+
+    }
+    SUBCASE("multiple (ok)") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( good : [ { a: 1 }, { b: 42}] )DELIM"s;
+        INFO(cfg.get_errors());
+        CHECK(cfg.parse(input));
+        auto & s = cfg.get_settings();
+        auto &good = s.at("good");
+        CHECK(good.count() == 2);
+        auto &a = good.at(0);
+        CHECK(a.is_group());
+        CHECK(a.at("a").get<int>() == 1);
+        auto &b = good.at(1);
+        CHECK(b.is_group());
+        CHECK(b.at("b").get<int>() == 42);
+
+    }
+
+    SUBCASE("Different types (bad)") {
+         simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( bad : [ { a: 1 }, 57.7 ] )DELIM"s;
+        CHECK_FALSE(cfg.parse(input));
+       
+    }
+}
+
 TEST_CASE("errors") {
     simpleConfig::Config cfg;
 
@@ -244,19 +286,41 @@ TEST_CASE("errors") {
 }
 
 
-TEST_CASE("at_path") {
+TEST_CASE("at_*") {
     //These really should be in t01, but it is easier to let the parser
     // build the nested structure.
-    SUBCASE("string") {
-            simpleConfig::Config cfg;
+    SUBCASE("at_vpath") {
+        simpleConfig::Config cfg;
 
-            std::string input = R"DELIM( a : { b = 3 }, c = "hello" )DELIM"s;
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
 
-            CHECK(cfg.parse(input));
+        CHECK(cfg.parse(input));
 
-            std::vector x = {"a"s,"b"s};
+        std::vector x = {"a"s,"b"s};
 
-            CHECK(cfg.get_settings().at_path(x).get<int>() == 3);
+        CHECK(cfg.at_vpath(x).get<int>() == 3);
+
+        CHECK(cfg.at_vpath({"d", "2"}).get<int>() == 5);
+    }
+
+    SUBCASE("at_path") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        char y[] = "a.b";
+        CHECK(cfg.at_path(y).get<int>() == 3);
+
+        std::string ys{"a.b"};
+        CHECK(cfg.at_path(ys).get<int>() == 3);
+
+        CHECK(cfg.at_path("d.[2]").get<int>() == 5);
+
 
     }
     SUBCASE("array index") {
@@ -266,10 +330,170 @@ TEST_CASE("at_path") {
 
             CHECK(cfg.parse(input));
 
-            CHECK(cfg.at_path({"a","b","2"}).get<int>() == 5);
+            CHECK(cfg.at_vpath({"a","b","2"}).get<int>() == 5);
 
             CHECK(cfg.at_path("a.b.[2]"s).get<int>() == 5);
 
     }
+
+        
+    SUBCASE("at_tpath") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_tpath("a", "b").get<int>() == 3);
+
+        CHECK(cfg.at_tpath("d", 2).get<int>() == 5);
+
+
+    }
+
 }
 
+TEST_CASE("lkup_*") {
+    //These really should be in t01, but it is easier to let the parser
+    // build the nested structure.
+    SUBCASE("lkup_vpath") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        std::vector x = {"a"s,"b"s};
+
+        CHECK(cfg.lkup_vpath(x)->get<int>() == 3);
+
+        CHECK(cfg.lkup_vpath({"d", "2"})->get<int>() == 5);
+    }
+
+    SUBCASE("lkup_path") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        char y[] = "a.b";
+        CHECK(cfg.lkup_path(y)->get<int>() == 3);
+
+        std::string ys{"a.b"};
+        CHECK(cfg.lkup_path(ys)->get<int>() == 3);
+
+        CHECK(cfg.lkup_path("d.[2]")->get<int>() == 5);
+
+
+    }
+    SUBCASE("array index") {
+            simpleConfig::Config cfg;
+
+            std::string input = R"DELIM( a : { b = [1 ,2 ,5] }, c = "hello" )DELIM"s;
+
+            CHECK(cfg.parse(input));
+
+            CHECK(cfg.lkup_vpath({"a","b","2"})->get<int>() == 5);
+
+            CHECK(cfg.lkup_path("a.b.[2]"s)->get<int>() == 5);
+
+    }
+
+        
+    SUBCASE("lkup_tpath") {
+
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, c = "hello"
+        d : [ 3 4 5 ] )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.lkup_tpath("a", "b")->get<int>() == 3);
+
+        CHECK(cfg.lkup_tpath("d", 2)->get<int>() == 5);
+
+
+    }
+
+}
+
+
+TEST_CASE("Comments") {
+    SUBCASE("Hash Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, 
+# This is a hash comment
+c = "hello" )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+
+    SUBCASE("Line Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b = 3 }, 
+// This is a c++ line comment
+c = "hello" )DELIM"s;
+
+        CHECK(cfg.parse(input));
+
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+    
+    SUBCASE("Block Comment") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( a : { b /* yup */ = 3 }, 
+/* 
+    This is a c block comment
+*/
+
+c = "hello"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.get_settings().at_path("a.b").get<int>() == 3);
+        CHECK(cfg.at_path("c").get<std::string>() == "hello");
+
+    }
+}
+
+TEST_CASE("string escapes") {
+    SUBCASE("backslash simple") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( 
+a : "a\f\n\\b"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.at_path("a").get<std::string>() == "a\f\n\\b");
+
+    }
+
+    SUBCASE("backslash hex") {
+        simpleConfig::Config cfg;
+
+        std::string input = R"DELIM( 
+a : "a\x20b"
+)DELIM"s;
+
+        CHECK(cfg.parse(input));
+        CHECK(cfg.at_path("a").get<std::string>() == "a b");
+
+    }
+
+
+}

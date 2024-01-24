@@ -339,3 +339,65 @@ TEST_CASE("Defaults") {
 
     }
 }
+
+TEST_CASE("enums") {
+    SUBCASE("simple int") {
+        auto text = "key : { _t : int, _enum : [1 5 10] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK(parser.do_parse());
+
+    }
+    SUBCASE("bad int") {
+        auto text = "key : { _t : int, _enum : [1 5 23.1] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
+    SUBCASE("simple float") {
+        auto text = "key : { _t : float, _enum : [1.0 5.2 -10.0] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK(parser.do_parse());
+
+    }
+    SUBCASE("bad int") {
+        auto text = "key : { _t : int, _enum : [1.0 -5 23.1] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
+
+    SUBCASE("simple string") {
+        auto text = "key : { _t : string, _enum : [\"a\" \"b\" \"yellow\"] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK(parser.do_parse());
+
+    }
+    SUBCASE("bad string") {
+        auto text = "key : { _t : string, _enum : [\"a\" \"b\" 42] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK_FALSE(parser.do_parse());
+
+    }
+
+    SUBCASE("simple array of strings") {
+        auto text = "key : { _t : array, _at : string, _enum : [\"a\" \"b\" \"yellow\"] }"s;
+        auto &parser = setup_schema_parser(text);
+        INFO(parser.errors);
+
+        CHECK(parser.do_parse());
+
+    }
+
+}

@@ -38,7 +38,7 @@ namespace simpleConfig {
     public :
 
         bool parse_file(std::string file_name) {
-            std::ifstream strm{file_name};
+            std::ifstream strm{file_name, std::ios_base::binary};
             return parse(strm);
         }
         bool parse(std::ifstream &strm) {
@@ -57,12 +57,48 @@ namespace simpleConfig {
         Setting& get_settings() const {
             return *cfg_;
         }
-        Setting& at_path(const std::string &v) {
-            return get_settings().at_path(v);
+
+        Setting &at(int idx) {
+            return get_settings().at(idx);
         }
 
-        Setting& at_path(const std::vector<std::string> &v) {
-            return get_settings().at_path(v);
+        Setting *lkup(int idx) {
+            return get_settings().lkup(idx);
+        }
+
+        Setting &at(const std::string& name) {
+            return get_settings().at(name);
+        }
+
+        Setting *lkup(const std::string& name) {
+            return get_settings().lkup(name);
+        }
+
+        Setting& at_path(std::string_view path) {
+            return get_settings().at_path(path);
+        }
+
+        Setting* lkup_path(std::string_view path) {
+            return get_settings().lkup_path(path);
+        }
+
+
+        Setting& at_vpath(const std::vector<std::string> &v) {
+            return get_settings().at_vpath(v);
+        }
+
+        Setting* lkup_vpath(const std::vector<std::string> &v) {
+            return get_settings().lkup_vpath(v);
+        }
+
+        template <typename ... args_t>
+        Setting& at_tpath(args_t ...args) {
+            return get_settings().at_tpath(args...);
+        }
+
+        template <typename ... args_t>
+        Setting* lkup_tpath(args_t ...args) {
+            return get_settings().lkup_tpath(args...);
         }
 
         bool has_errors() const {return (errors.count() > 0); }

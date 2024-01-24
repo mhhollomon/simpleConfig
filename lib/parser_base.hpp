@@ -142,19 +142,23 @@ namespace simpleConfig {
         // Otherwise, it must start with a letter
         // and only consist of letters, numbers and underbars.
         std::optional<std::string> match_name(bool schema_mode = false) {
+            skip();
+            ENTER;
+
+            if (eoi()) RETURN_NULLOPT;
 
             int pos = 0;
             if (schema_mode && peek(pos) == '*') {
                 if (!check_string_end(1))
-                    return std::nullopt;
+                    RETURN_NULLOPT;
                 consume(1);
                 
-                return std::string("*");
+                RETURN(std::string("*"));
 
             } else if (std::isalpha(peek(pos))) {
                 pos += 1;
             } else {
-                return std::nullopt;
+                RETURN_NULLOPT;
             }
 
             while (valid_pos(pos)) {
@@ -168,7 +172,7 @@ namespace simpleConfig {
             auto retval = current_loc.sv.substr(0, pos);
             consume(pos);
 
-            return std::string(retval);
+            RETURN(std::string(retval));
         }
 
         //##############   CHAR utils #######################
@@ -401,6 +405,7 @@ namespace simpleConfig {
                             record_error("Unrecognized escape sequence in string");
                             consume(1);
                         }
+                        break;
                     case '\n' :
                         record_error("Unterminated string");
                         RETURN_NULLOPT;
@@ -424,7 +429,7 @@ namespace simpleConfig {
                 }
             }
 
-            return buf.str();
+            RETURN(buf.str());
 
         }
 
@@ -463,6 +468,270 @@ namespace simpleConfig {
         }
 
 
+        // check to see if at the end of the line and returns
+        // how many chars to consume if desired. (0 means not at EOL)
+        // possibilities are '\n', '\f', '\f\n'
+        // so '\n\f' will only return 1.
+        //
+        // NOTE : This does NOT ensure that pos is valid.
+        int at_line_end(int pos = 0) {
+            int len = 0;
+            if (peek(pos) == '\n') {
+                RETURN(1);
+            } else if (peek(pos) == '\f') {
+                len +=1;
+                pos += 1;
+                if (valid_pos(pos) and peek(pos) == '\n') {
+                    len += 1;
+                }
+            }
+
+            return len;
+        }
+
+        //##############   parse_list     ##############
+        bool parse_list(Setting* setting) {
+            skip();
+            while(1) {
+                if (peek() == ')') {
+                    return true;
+                }
+                Setting *child = setting->try_add_child(ValType::NONE);
+                if (!parse_setting_value(child)) {
+                    return false;
+                }
+                skip();
+                if (match_chars(0, ";,")) {
+                    consume(1);
+                    skip();
+                }
+            }
+
+            // Never should get here. At some point parse_setting_value()
+            // will fail and we'll exit inside the loop
+            return false;
+        }
+
+
+        //##############   parse_setting_value ##############
+
+        bool parse_setting_value(Setting * setting, bool record_failure=true) {
+            if (peek() == '{') {
+                consume(1);
+                skip();
+                setting->make_group();
+                parse_group(setting);
+                skip();
+                if (peek(0) != '}') {
+                    record_error("Didn't find close of setting group");
+                    return false;
+                }
+                consume(1);
+            } else if (peek() == '(') {
+                consume(1);
+                skip();
+                setting->make_list();
+                parse_list(setting);
+                skip();
+                if (peek() != ')') {
+                    record_error("Didn't find close of setting list");
+                    return false;
+                }
+                consume(1);
+            } else if (peek() == '[') {
+                consume(1);
+                skip();
+                setting->make_array();
+                parse_array(setting);
+                skip();
+                if (peek() != ']') {
+                    record_error("Didn't find close of value array");
+                    return false;
+                }
+                consume(1);
+            } else if (! match_scalar_value(setting)) {
+                if (record_failure) record_error("Expecting a value");
+                return false;
+            }
+
+            return true;
+        }
+        //##############   setting ##########################
+
+        bool parse_setting(Setting * parent) {
+            skip();
+            ENTER;
+
+            auto name = match_name();
+            if ( ! name ) {
+                RETURN_B(false);
+            }
+
+            skip();
+
+            if (not match_chars(0, ":=")) {
+                record_error("Expecting : or = after setting name");
+                RETURN_B(false);
+            }
+            consume(1);
+
+            auto new_setting = parent->try_add_child(*name, ValType::NONE);
+
+            if (!new_setting) {
+                record_error("Setting named "s + *name + " already defined in this context");
+                RETURN_B(false);
+            }
+
+            skip();
+            bool retval = parse_setting_value(new_setting);
+            RETURN_B(retval);
+            
+        }
+
+        //##############   parse_group #####################
+
+        bool parse_group(Setting * parent) {
+            skip();
+            ENTER;
+
+            bool at_least_one = false;
+            while (1) {
+                if (!parse_setting(parent)) break;
+                at_least_one = true;
+
+                if (match_chars(0, ";,")) {
+                    consume(1);
+                }
+                skip();
+            }
+
+            RETURN_B(at_least_one);
+        }
+
+
+        //##############   parse_array    ##############
+        bool parse_array(Setting * setting) {
+
+            skip();
+            ENTER;
+
+            // For the first one, it can be anything
+            do {
+                if (peek() == '{') {
+                    consume(1);
+                    auto *element = new Setting(ValType::GROUP);
+                    if (not parse_group(element)) {
+                        RETURN_B(false);
+                    }
+                    skip();
+                    if (! match_char('}')) {
+                        record_error("Did not see close brace for subgroup");
+                        RETURN_B(false);
+                    }
+                    consume(1);
+                    setting->add_child(*element);
+                    std::cout << "=== Array with group child now has array type = "
+                        << int(setting->array_type()) << "\n";
+                    break;
+                }
+
+                auto bv = match_bool_value();
+                if (bv) {
+                    setting->add_child(*bv);
+                    break;
+                }
+                
+                auto lv = match_integer_value();
+                if (lv) {
+                    setting->add_child(*lv);
+                    break;
+                }
+
+                auto dv = match_double_value();
+                if (dv) {
+                    setting->add_child(*dv);
+                    break;
+                }
+
+                auto sv = match_string_value();
+                if (sv) {
+                    setting->add_child(*sv);
+                    break;
+                }
+            } while(false);
+
+
+            while (1) {
+                skip();
+                if (match_chars(0, ";,")) {
+                    consume(1);
+                    skip();
+                }
+
+                if (setting->array_type() == ValType::GROUP) {
+                    if (peek() != '{') {
+                        break;
+                    }
+                    consume(1);
+                    auto *element = new Setting(ValType::GROUP);
+                    if (not parse_group(element)) {
+                        RETURN_B(false);
+                    }
+                    skip();
+                    if (! match_char('}')) {
+                        record_error("Did not see close brace for subgroup");
+                        RETURN_B(false);
+                    }
+                    consume(1);
+                    setting->add_child(*element);
+
+                } else if (setting->array_type() == ValType::BOOL) {
+                    auto bv = match_bool_value();
+                    if (bv) {
+                        setting->add_child(*bv);
+                    } else {
+                        break;
+                    }
+
+                } else if (setting->array_type() == ValType::INTEGER) {
+                    auto lv = match_integer_value();
+                    if (lv) {
+                        setting->add_child(*lv);
+                    } else {
+                        break;
+                    }
+
+                } else if (setting->array_type() == ValType::FLOAT) {
+                    auto dv = match_double_value();
+                    if (dv) {
+                        setting->add_child(*dv);
+                    } else {
+                        break;
+                    }
+                } else if (setting->array_type() == ValType::STRING) {
+
+                    auto sv = match_string_value();
+                    if (sv) {
+                        setting->add_child(*sv);
+                    } else {
+                        break;
+                    }
+                } else {
+                    throw std::runtime_error("Unexpected array_type");
+                }
+            }
+
+            Setting tester{};
+
+            if (match_scalar_value(&tester)) {
+                record_error("All values in an array must be the same type");
+                RETURN_B(false);
+            }
+
+            RETURN_B(true);
+
+        }
+
         /****************************************************************
         * SKIP Processing
         ****************************************************************/
@@ -497,47 +766,58 @@ namespace simpleConfig {
                 //    " char = '" << peek() << "'\n";
                 switch (state) {
                     case skNormal : // Normal state
-                        if (peek(0) == '\n') {
-                            line_count += 1;
-                            consume(1);
-                        } else if (std::isspace(peek(0))) {
-                            consume(1);
-                        } else if (peek(0) == '#') {
-                            //std::cout << "--- Saw hash comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("//")) {
-                            //std::cout << "--- Saw line comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skLine;
-                        } else if (check_string("/*")) {
-                            //std::cout << "--- Saw block comment start\n";
-                            comment_loc = cl;
-                            consume(2);
-                            state = skBlock;
-                        } else {
-                            skipping = false;
+                        {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
+                                line_count += 1;
+                                consume(eol_count);
+                            } else if (std::isspace(peek(0))) {
+                                consume(1);
+                            } else if (peek(0) == '#') {
+                                //std::cout << "--- Saw hash comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skLine;
+                            } else if (check_string("//")) {
+                                //std::cout << "--- Saw line comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skLine;
+                            } else if (check_string("/*")) {
+                                //std::cout << "--- Saw block comment start\n";
+                                comment_loc = cl;
+                                consume(2);
+                                state = skBlock;
+                            } else {
+                                skipping = false;
+                            }
                         }
                         break;
                     case skLine: // Line comment
-                        if (peek(0) == '\n') {
-                            //std::cout << "--- line comment end\n";
-                            state = skNormal;
-                            line_count += 1;
+                        {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
+                                //std::cout << "--- line comment end\n";
+                                state = skNormal;
+                                line_count += 1;
+                                consume(eol_count);
+                            } else {
+                                consume(1);
+                            }
                         }
-                        consume(1);
                         break;
                     case skBlock: // Block comment
                         if (match_string("*/")) {
                             //std::cout << "--- block comment end\n";
                             state = skNormal;
                         } else {
-                            if (peek(0) == '\n') {
+                            int eol_count = at_line_end(0);
+                            if (eol_count > 0) {
                                 line_count += 1;
+                                consume(eol_count);
+                            } else {
+                                consume(1);
                             }
-                            consume(1);
                         }
                         break;
                 }
